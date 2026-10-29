@@ -11,50 +11,72 @@ There is **no code entry, no multiple choice, and no tap-to-answer control anywh
 product** — one content type, spoken. That constraint is the product, not an omission; see
 Principle I in `.specify/memory/constitution.md`.
 
-Built for the **Nebius x NVIDIA Global AI Hackathon**. Every LLM call runs on
-**Nebius Token Factory**, with **NVIDIA Nemotron** (`nvidia/nemotron-3-super-120b-a12b`) as the
-tutor and the judge.
+Built for the **PayPal AI Hackathon**. **Pro Plus**, a monthly subscription billed through the
+**PayPal Subscriptions API** (sandbox), unlocks the whole problem library and replays. The AI side
+runs on **Nebius Token Factory** with **NVIDIA Nemotron** (`nvidia/nemotron-3-super-120b-a12b`) as
+the tutor and the judge.
 
 ## For judges
 
 | | |
 |---|---|
-| Android APK | [Latest release](https://github.com/Abdelmohaymn/dry-run-tutor/releases/latest) |
-| Demo video | [Watch on Vimeo](https://vimeo.com/1235297818) (under 3 min) |
+| Android APK | [Latest release](https://github.com/Abdelmohaymn/dry-run-tutor-paypal/releases/latest) |
+| Demo video | <YOUTUBE_URL> (under 3 min) |
+| PayPal sandbox buyer | `easy@p.e.com` / `12345678` |
 
-Android phones only, internet required. **No API key, account or payment needed**, and no daily
-limit: you can redo a problem or pick another as often as you like.
+Android phones only, internet required. **No real money moves**: Pro Plus is billed in PayPal's
+test environment, and you need no real PayPal account, API key or payment.
 
-1. Install the APK (allow installs from unknown sources when Android asks).
-2. Open the app and skip or finish the short welcome walkthrough.
-3. Tap the mic and talk through your approach (English).
-4. Answer the tutor. When you are done, tap **End session**, then **Finish**, for your
-   assessment ("How it went") and the full write-up.
-5. Tap **Practice this problem again** to redo it, or **Choose a problem** to try another.
+1. Install the APK (allow installs from unknown sources when Android asks) and open it. Skip or
+   finish the short welcome walkthrough.
+2. Tap the mic and talk through your approach to today's problem (English). Answer the tutor.
+   Tap **End session**, then **Finish**, for your assessment and the full write-up.
+3. Tap **Practice this problem again** or **Choose a problem**. On the free tier this shows the Pro
+   Plus offer.
+4. Tap **Get Pro Plus** (or **Settings → Plan → Subscribe**). PayPal opens in your browser. Log in
+   with the sandbox buyer above and approve.
+5. Return to the app. Within a few seconds the Plan screen says **Pro Plus is active**. Pick any
+   problem and replay it, with no key.
+6. To end it, tap **Manage or cancel in PayPal** on the Plan screen. Pro stays until the end of
+   the paid period and the Plan screen shows the date.
 
-Optional: add your own Nebius Token Factory key under Settings → **Provider key** to use your own
-credit instead of the shared free one.
+| | Free | Pro Plus ($4.99 / month, sandbox) |
+|---|---|---|
+| Problems | Today's problem | Any problem (picker) |
+| Practice again | No | Yes |
+| Sessions | 3 in total | 5 a day |
+| Cloud voice | 5 minutes in total | 15 minutes a day |
 
-### Pro Plus (PayPal sandbox)
+Optional: your own Nebius Token Factory key under Settings → **Provider key** also unlocks the
+picker and replays, on your own credit.
 
-The PayPal AI Hackathon entry adds **Pro Plus**, a subscription billed through PayPal's **test
-environment**: no real money moves, and you need no real PayPal account. Pro Plus is new work
-during the PayPal hackathon's submission period; it is not part of the Nebius entry above. This
-APK talks to its own relay, separate from the Nebius entry's, and its free tier is smaller (today's
-problem once, no "Practice again" or problem picker), which is what Pro Plus adds.
+## How it uses PayPal
 
-| | |
-|---|---|
-| Android APK (PayPal build) | <PAYPAL_APK_URL> |
-| Sandbox buyer email | easy@p.e.com |
-| Sandbox buyer password | 12345678 |
+The app never talks to PayPal's API. A Cloudflare Worker relay holds the sandbox credentials and
+calls the **Subscriptions API** with plain `fetch` (`worker/src/lib/paypal.ts`). The API host is a
+constant, and a test fails the build if a live PayPal host appears in the source.
 
-1. Install the PayPal build and open it.
-2. Open **Settings → Plan** and tap **Subscribe**. PayPal opens in your browser.
-3. Log in with the sandbox buyer above and approve the subscription.
-4. Return to the app. Within a few seconds the Plan screen says **Pro Plus is active**, and you
-   can practise any problem, and replay it, without a key.
-5. To see it end, tap **Manage or cancel in PayPal** on the Plan screen.
+| Step | PayPal API | What happens |
+|---|---|---|
+| Setup (once) | Catalog Products, Billing Plans | `npm run paypal:setup` creates the product and the $4.99 monthly plan |
+| Checkout | `POST /v1/billing/subscriptions` | `POST /v1/pro/checkout` creates a subscription bound to this device and returns PayPal's approve link. The app opens it in the system browser |
+| Return | `GET /v1/billing/subscriptions/{id}` | PayPal sends the buyer to the relay's `/paypal/return` page, which re-reads the subscription and links back into the app (`dryruntutor://pro/return`) |
+| Webhooks | `POST /v1/notifications/verify-webhook-signature` | `/v1/paypal/webhook` verifies every event's signature first, then re-reads the subscription from PayPal. It never trusts the event body for status |
+| Stale check | `GET /v1/billing/subscriptions/{id}` | `GET /v1/pro/status` re-reads a pending or stale row, so a missed webhook still settles |
+
+Events handled: `BILLING.SUBSCRIPTION.ACTIVATED`, `.CANCELLED`, `.SUSPENDED`, `.RE-ACTIVATED`,
+`.EXPIRED`, `.PAYMENT.FAILED`, `.UPDATED` and `PAYMENT.SALE.COMPLETED`. A cancelled subscription
+stays Pro until its paid period ends.
+
+**What is stored**: only the subscription id, the device it is bound to, its status, the period
+end and when it was last confirmed. No payer name, email, address or payment detail is read past
+the parser.
+
+**Spend control**: Pro sessions run on the operator's Nebius credit, so Pro has its own ledger
+with a daily and a total token ceiling, apart from the free budget. When a ceiling is reached, new
+Pro sessions fall back to the free path. `pro.enabled` in the relay's config is a kill switch.
+
+Full design: `specs/009-paypal-pro-plus/`.
 
 ## How it uses Nebius Token Factory
 
@@ -82,26 +104,30 @@ own speech recognition takes over.
 
 ```
 Android app (Flutter)  ──HTTPS──▶  Cloudflare Worker relay  ──▶  Nebius Token Factory (LLMs)
-  transcripts, sessions,            problems (private half),  └──▶  Groq Whisper (speech-to-text)
-  streak: on the phone only         D1: usage caps only
+  transcripts, sessions,            problems (private half),  ├──▶  Groq Whisper (speech-to-text)
+  streak: on the phone only         D1: usage caps and        └──▶  PayPal Subscriptions API (sandbox)
+        │                           subscription status                     │
+        └──── system browser ──▶ PayPal approval page ──▶ relay /paypal/return ──▶ back to the app
 ```
 
 - **Learner data stays on the phone** (SQLite via Drift). The relay's D1 database holds only
   what enforces usage caps; transcripts, audio and keys are never stored.
 - **A problem's private half never reaches the phone.** The app receives only the statement,
   examples and glossary.
-- **Free path**: a shared operator key with a daily token budget. **Keyed path**: the learner's
-  own Nebius key, sent per request and never stored.
+- **Free path**: a shared operator key with a daily token budget. **Pro path**: the same operator
+  key with Pro's own ledger and ceilings. **Keyed path**: the learner's own Nebius key, sent per
+  request and never stored.
 
 ## Built during the hackathon
 
 The first commit is a snapshot of Dry Run, an Android app that already existed before this repo,
 with private material removed: the full problem library, release signing and store tooling,
-internal planning docs and the landing site. **Every commit after the first is new work**,
-including:
+internal planning docs and the landing site. That first commit is dated 2026-10-07, after the
+PayPal AI Hackathon's submission period opened on 2026-10-01. **Every commit after the first is new
+work**, including:
 
 - Cloud speech-to-text on Groq Whisper, with a per-device daily cap and on-device fallback
-- Problem picker and "Practice this problem again", so judges have no daily limit
+- Problem picker and "Practice this problem again"
 - Judge that quotes the learner, plus a separate evidence check of those quotes
 - Progress check that tracks settled insights from turn 1, and credits ideas accepted from the
   tutor as "with a nudge"
@@ -109,9 +135,10 @@ including:
   credit
 - Transcript repair on the free path, metered against the free budget
 - A regression harness of real tutor and judge transcripts (`worker/test/harness/`)
-- Pro Plus, a PayPal sandbox subscription (`specs/009-paypal-pro-plus/`): checkout in the system
-  browser, entitlement re-read from PayPal on every webhook and stale check, its own spend ledger
-  and ceilings, and a kill switch. PayPal hackathon entry only
+- **Pro Plus**, the PayPal sandbox subscription (`specs/009-paypal-pro-plus/`): checkout in the
+  system browser, signature-verified webhooks, entitlement re-read from PayPal on every webhook
+  and stale check, a Plan screen, the Pro offer on locked replays, its own spend ledger and
+  ceilings, and a kill switch
 
 `git log` shows the full history.
 
@@ -124,7 +151,6 @@ including:
 | `worker/src/prompts/` | Tutor, judge, progress check (`finish-check.ts`), evidence check, condense and repair prompts |
 | `content/problems/` | Four sample problems, `public`/`private` split. The live app serves more; they are kept out of the repo so their answers stay private |
 | `specs/` | Wire and design contracts the code and tests read |
-| `hackathon/` | Judging plan, demo video source and submission notes |
 
 ## Running it
 
@@ -133,10 +159,10 @@ flutter pub get
 flutter run
 ```
 
-One app (`app.dryrun.tutor`), one relay: `lib/core/config/relay.dart` holds the deployed worker URL.
-Pass `--dart-define=RELAY_BASE_URL=https://...` to point a build at another worker. The PayPal build
-is the same app pointed at the PayPal worker:
-`flutter build apk --release --dart-define=RELAY_BASE_URL=https://dry-run-tutor-paypal.<subdomain>.workers.dev`.
+One app (`app.dryrun.tutor`), one relay: `lib/core/config/relay.dart` holds the deployed worker URL
+(`https://dry-run-tutor-paypal.dryrun-app.workers.dev`, the relay with Pro Plus switched on), so
+`flutter build apk --release` builds the same app as the release APK. Pass
+`--dart-define=RELAY_BASE_URL=https://...` to point a build at another worker.
 `lib/core/config/brand.dart` holds the product name and every identifier derived from it.
 Release builds use `android/key.properties` if present, otherwise the debug key.
 
@@ -161,8 +187,11 @@ LD_LIBRARY_PATH=/tmp/shim flutter test
 ```bash
 cd worker
 npm run build:content
-npx wrangler deploy --env dev
+npx wrangler deploy --env dev       # the PayPal relay is --env paypal
 ```
+
+PayPal sandbox setup (REST app, plan, webhook, secrets) is in
+`specs/009-paypal-pro-plus/quickstart.md` §3.
 
 Content changes do nothing on a device until the worker redeploys. `runtime_config`'s
 `content_manifest_url` must name the worker's own host — the client refuses any other (FR-004),

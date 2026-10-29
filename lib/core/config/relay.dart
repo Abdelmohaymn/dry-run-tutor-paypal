@@ -9,7 +9,7 @@
 ///
 /// Every build talks to the deployed worker. To point a build at a local
 /// `wrangler dev` instead, pass `--dart-define=RELAY_BASE_URL=https://...`.
-const String defaultRelayBaseUrl = 'https://dry-run-tutor.dryrun-app.workers.dev';
+const String defaultRelayBaseUrl = 'https://dry-run-tutor-paypal.dryrun-app.workers.dev';
 
 const String _relayBaseUrlDefine = String.fromEnvironment('RELAY_BASE_URL');
 
