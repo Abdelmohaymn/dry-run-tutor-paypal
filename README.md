@@ -35,6 +35,27 @@ limit: you can redo a problem or pick another as often as you like.
 Optional: add your own Nebius Token Factory key under Settings → **Provider key** to use your own
 credit instead of the shared free one.
 
+### Pro Plus (PayPal sandbox)
+
+The PayPal AI Hackathon entry adds **Pro Plus**, a subscription billed through PayPal's **test
+environment**: no real money moves, and you need no real PayPal account. Pro Plus is new work
+during the PayPal hackathon's submission period; it is not part of the Nebius entry above. This
+APK talks to its own relay, separate from the Nebius entry's, and its free tier is smaller (today's
+problem once, no "Practice again" or problem picker), which is what Pro Plus adds.
+
+| | |
+|---|---|
+| Android APK (PayPal build) | <PAYPAL_APK_URL> |
+| Sandbox buyer email | easy@p.e.com |
+| Sandbox buyer password | 12345678 |
+
+1. Install the PayPal build and open it.
+2. Open **Settings → Plan** and tap **Subscribe**. PayPal opens in your browser.
+3. Log in with the sandbox buyer above and approve the subscription.
+4. Return to the app. Within a few seconds the Plan screen says **Pro Plus is active**, and you
+   can practise any problem, and replay it, without a key.
+5. To see it end, tap **Manage or cancel in PayPal** on the Plan screen.
+
 ## How it uses Nebius Token Factory
 
 The app never calls a model provider directly. It talks only to a Cloudflare Worker relay, which
@@ -88,6 +109,9 @@ including:
   credit
 - Transcript repair on the free path, metered against the free budget
 - A regression harness of real tutor and judge transcripts (`worker/test/harness/`)
+- Pro Plus, a PayPal sandbox subscription (`specs/009-paypal-pro-plus/`): checkout in the system
+  browser, entitlement re-read from PayPal on every webhook and stale check, its own spend ledger
+  and ceilings, and a kill switch. PayPal hackathon entry only
 
 `git log` shows the full history.
 
@@ -110,7 +134,9 @@ flutter run
 ```
 
 One app (`app.dryrun.tutor`), one relay: `lib/core/config/relay.dart` holds the deployed worker URL.
-Pass `--dart-define=RELAY_BASE_URL=https://...` to point a build at another worker.
+Pass `--dart-define=RELAY_BASE_URL=https://...` to point a build at another worker. The PayPal build
+is the same app pointed at the PayPal worker:
+`flutter build apk --release --dart-define=RELAY_BASE_URL=https://dry-run-tutor-paypal.<subdomain>.workers.dev`.
 `lib/core/config/brand.dart` holds the product name and every identifier derived from it.
 Release builds use `android/key.properties` if present, otherwise the debug key.
 

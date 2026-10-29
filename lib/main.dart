@@ -15,6 +15,8 @@ import 'core/time/trusted_time_source.dart';
 import 'features/assessment/domain/assessment_repository.dart';
 import 'features/chat/domain/session_repository.dart';
 import 'features/onboarding/domain/install_repository.dart';
+import 'features/plan/domain/plan_repository.dart';
+import 'features/plan/domain/replay_gate.dart';
 import 'features/problem/domain/problem_repository.dart';
 import 'features/settings/domain/settings_repository.dart';
 import 'features/streak/domain/streak_repository.dart';
@@ -102,9 +104,21 @@ Future<void> main() async {
     settingsRepository: sl<SettingsRepository>(),
     timeSource: sl<TrustedTimeSource>(),
     currentAppVersion: packageInfo.version,
+    planRepository: sl<PlanRepository>(),
+    replayGate: sl<ReplayGate>(),
   );
 
   unawaited(configRefreshed.future.then((_) => router.refresh()));
+
+  // Feature 009. With Pro Plus on, read the plan once the fresh config lands,
+  // so a webhook the relay missed heals on the next launch (research.md R-12).
+  unawaited(
+    configRefreshed.future.then((_) {
+      if (sl<RemoteConfigRepository>().cached()?.pro != null) {
+        unawaited(sl<PlanRepository>().refresh());
+      }
+    }),
+  );
 
   // Anything nobody expected gets a popup with a code the learner can send
   // back, instead of a frozen screen and nothing to report.

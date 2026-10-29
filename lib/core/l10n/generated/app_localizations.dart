@@ -1641,6 +1641,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copied'**
   String get messageCopiedNotice;
+
+  /// Settings row that opens the Plan screen (Pro Plus, feature 009).
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get settingsPlanLabel;
+
+  /// Plan screen app bar title.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get planTitle;
+
+  /// Plan screen: the learner is on the free taster.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get planFreeName;
+
+  /// Plan screen: the learner has an active Pro Plus subscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Plus'**
+  String get planProName;
+
+  /// Plan screen: the learner is using their own provider key, which takes precedence over any plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own key'**
+  String get planOwnKey;
+
+  /// Shown under 'Your own key' only while Pro Plus is on offer (FR-013).
+  ///
+  /// In en, this message translates to:
+  /// **'Your own key is in use. Pro Plus is an alternative if you\'d rather not use a key.'**
+  String get planOwnKeyProNote;
+
+  /// Plan screen heading above the sessions and voice usage lines.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get planUsageHeading;
+
+  /// Pro sessions used today (UTC) out of the daily allowance.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions today: {used} of {limit}'**
+  String planSessionsUsage(int used, int limit);
+
+  /// Free-taster sessions used out of the lifetime allowance.
+  ///
+  /// In en, this message translates to:
+  /// **'Free sessions used: {used} of {limit}'**
+  String planSessionsUsageLifetime(int used, int limit);
+
+  /// Cloud voice minutes used today out of the allowance, rounded up.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice today: {used} of {limit} min'**
+  String planVoiceUsage(int used, int limit);
+
+  /// Pro Plus is active; the date PayPal will bill next. The date is preformatted.
+  ///
+  /// In en, this message translates to:
+  /// **'Renews on {date}'**
+  String planRenews(String date);
+
+  /// Pro Plus was cancelled in PayPal but is paid up until this preformatted date.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends on {date}'**
+  String planEnds(String date);
+
+  /// Shown when the subscription is suspended, expired, ended, or a payment failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Pro Plus subscription is not active.'**
+  String get planEndedNotice;
+
+  /// Pro limit line: the day's Pro session allowance is spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Pro sessions are used. They come back tomorrow (UTC).'**
+  String get planProSessionsUsed;
+
+  /// Pro limit line: the operator's Pro allowance is full; this is not the learner's doing.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Plus is at capacity for now. Try again later, or add your own key.'**
+  String get planProCapacity;
+
+  /// Heading of the Pro Plus offer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Plus'**
+  String get planOfferTitle;
+
+  /// What Pro Plus adds, from the relay's own levers.
+  ///
+  /// In en, this message translates to:
+  /// **'{sessions} sessions a day and {minutes} minutes of voice a day, with no key needed.'**
+  String planOfferLimits(int sessions, int minutes);
+
+  /// Says plainly that subscribing here is a sandbox payment (FR-002).
+  ///
+  /// In en, this message translates to:
+  /// **'Billed through PayPal. This build uses PayPal\'s test environment, so no real money is charged.'**
+  String get planOfferPayPal;
+
+  /// Primary button on the offer card. Opens PayPal in the system browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribe'**
+  String get planSubscribe;
+
+  /// Opens PayPal's own manage page in the system browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage or cancel in PayPal'**
+  String get planManage;
+
+  /// Shown when the plan came from the cache; the date is the relay's time, preformatted.
+  ///
+  /// In en, this message translates to:
+  /// **'Last checked {date}'**
+  String planLastChecked(String date);
+
+  /// Spinner caption while the checkout is created or the approval is confirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirming with PayPal…'**
+  String get planConfirming;
+
+  /// Shown while PayPal is open in the browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish in PayPal, then come back here.'**
+  String get planAwaitingReturn;
+
+  /// Notice after the subscription is confirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Plus is active.'**
+  String get planActivated;
+
+  /// Notice when the learner backed out of PayPal. Not an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription not completed.'**
+  String get planNotCompleted;
+
+  /// Notice when the checkout could not be started.
+  ///
+  /// In en, this message translates to:
+  /// **'PayPal is unavailable. Try again later.'**
+  String get planPayPalUnavailable;
+
+  /// Notice when the relay says the device is already subscribed.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Plus is already active on this device.'**
+  String get planAlreadyActive;
+
+  /// Plan screen when the first load failed and nothing is cached.
+  ///
+  /// In en, this message translates to:
+  /// **'The plan can\'t be loaded right now.'**
+  String get planUnavailable;
+
+  /// Retry button under planUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get planRetry;
+
+  /// Small chip shown on Settings and the Plan screen while Pro Plus is active. Never on the conversation screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro'**
+  String get proBadgeLabel;
+
+  /// Key prompt heading for a Pro device whose day's sessions are spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Pro sessions are used'**
+  String get keyPromptProSessionsTitle;
+
+  /// Key prompt body: names the reset and offers the key as the way to continue today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Pro sessions are used. They come back tomorrow (UTC). Add your own key to keep going now.'**
+  String get keyPromptProSessionsBody;
+
+  /// Key prompt heading for a Pro device when the operator's Pro allowance is full.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Plus is at capacity'**
+  String get keyPromptProCapacityTitle;
+
+  /// Key prompt body: capacity, not anything the learner spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Plus is at capacity for now. Add your own key to keep going.'**
+  String get keyPromptProCapacityBody;
+
+  /// Third button on a key prompt when Pro Plus is on offer. Opens the Plan screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Pro Plus'**
+  String get keyPromptProAction;
+
+  /// Prompt shown when a free learner taps Practice again or the problem picker and replay is off (FR-027).
+  ///
+  /// In en, this message translates to:
+  /// **'Practice again is part of Pro Plus'**
+  String get keyPromptReplayLockedTitle;
+
+  /// Explains the free tier on the PayPal deployment before anything is spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Free practice is today\'s problem, once. Pro Plus adds Practice again and the other problems. Your own key unlocks them too.'**
+  String get keyPromptReplayLockedBody;
 }
 
 class _AppLocalizationsDelegate

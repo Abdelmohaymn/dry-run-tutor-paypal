@@ -28,6 +28,7 @@ enum AppRoute {
   keysEntry('/keys/entry'),
   settings('/settings'),
   settingsKey('/settings/key'),
+  settingsPlan('/settings/plan'),
   settingsReminder('/settings/reminder'),
   settingsWipe('/settings/wipe'),
   withdrawn('/withdrawn');

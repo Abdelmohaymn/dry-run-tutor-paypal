@@ -126,6 +126,23 @@
         "model": { "type": "string", "default": "whisper-large-v3-turbo", "description": "Speech-to-text model name sent to the provider. Optional. SERVER-READ ONLY: stripped from GET /v1/config, so the app never receives it." }
       }
     },
+    "pro": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "plan_id", "price_label", "sessions_per_day", "voice_seconds_per_day", "daily_token_ceiling", "total_token_ceiling"],
+      "description": "Pro Plus (feature 009, PayPal sandbox). Absent means Pro is off everywhere; `enabled: false` is the kill switch. The Worker reads this block from D1 to decide entitlement limits and caps operator-key spend. Served by GET /v1/config as `enabled`, `price_label`, `sessions_per_day`, `voice_seconds_per_day` and `manage_url` only: `plan_id`, both token ceilings and `recheck_after_seconds` are server-read only and stripped.",
+      "properties": {
+        "enabled": { "type": "boolean", "description": "false turns Pro off for every device: no offer, and Pro devices are served by the free path." },
+        "plan_id": { "type": "string", "pattern": "^P-[A-Z0-9]{8,40}$", "description": "The PayPal sandbox billing plan id. SERVER-READ ONLY." },
+        "price_label": { "type": "string", "minLength": 1, "maxLength": 40, "description": "Display text for the price, e.g. \"$4.99 / month\"." },
+        "sessions_per_day": { "type": "integer", "minimum": 1, "maximum": 50, "description": "Pro sessions one device may start per UTC day. A session is one problem on one UTC day." },
+        "voice_seconds_per_day": { "type": "integer", "minimum": 0, "maximum": 3600, "description": "Seconds of server-side transcription a Pro device may use per UTC day. Replaces voice.seconds_per_device for Pro devices." },
+        "daily_token_ceiling": { "type": "integer", "minimum": 0, "description": "Operator-key tokens all Pro devices may spend per UTC day. Gates new Pro sessions only. SERVER-READ ONLY." },
+        "total_token_ceiling": { "type": "integer", "minimum": 0, "description": "Operator-key tokens all Pro devices may spend in total (sum over pro_spend). Gates new Pro sessions only. SERVER-READ ONLY." },
+        "recheck_after_seconds": { "type": "integer", "minimum": 60, "default": 21600, "description": "How old a subscription's last PayPal read may be before GET /v1/pro/status re-reads it. SERVER-READ ONLY." },
+        "manage_url": { "type": "string", "format": "uri", "pattern": "^https://www\\.sandbox\\.paypal\\.com/", "default": "https://www.sandbox.paypal.com/myaccount/autopay/", "description": "Where the app's Manage or cancel button opens. Sandbox host only." }
+      }
+    },
     "trial": {
       "type": "object",
       "additionalProperties": false,
@@ -155,6 +172,10 @@
         "ip_daily_session_cap": {
           "type": "integer", "minimum": 0, "default": 15,
           "description": "New trial sessions per network (keyed hash of the caller's IP, never the IP) per UTC day. 0 disables it. Over the cap the relay answers TRIAL_IP_LIMIT and the app offers key entry."
+        },
+        "replay_enabled": {
+          "type": "boolean", "default": true,
+          "description": "FR-027. false limits a free device to today's daily problem, once: no Practice again and no problem picker (the offer to subscribe or add a key shows instead). Pro and keyed devices are unaffected. Absent means true, which is the behaviour before this lever existed."
         },
         "pool": {
           "type": "array",

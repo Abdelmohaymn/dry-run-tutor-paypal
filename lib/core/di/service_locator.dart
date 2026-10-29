@@ -21,6 +21,9 @@ import '../../features/keys/data/secure_key_store.dart';
 import '../../features/keys/domain/key_repository.dart';
 import '../../features/onboarding/data/install_repository_impl.dart';
 import '../../features/onboarding/domain/install_repository.dart';
+import '../../features/plan/data/plan_repository_impl.dart';
+import '../../features/plan/domain/plan_repository.dart';
+import '../../features/plan/domain/replay_gate.dart';
 import '../../features/problem/data/problem_repository_impl.dart';
 import '../../features/problem/domain/problem_repository.dart';
 import '../../features/settings/data/settings_repository_impl.dart';
@@ -210,6 +213,21 @@ Future<void> setupLocator() async {
   );
   sl.registerLazySingleton<VoiceQuotaStore>(
     () => VoiceQuotaStore(sl<SharedPreferences>()),
+  );
+  sl.registerLazySingleton<PlanRepository>(
+    () => PlanRepositoryImpl(
+      relayClient: sl<RelayClient>(),
+      installRepository: sl<InstallRepository>(),
+      prefs: sl<SharedPreferences>(),
+      voiceQuotaStore: sl<VoiceQuotaStore>(),
+    ),
+  );
+  sl.registerLazySingleton<ReplayGate>(
+    () => ReplayGate(
+      configRepository: sl<RemoteConfigRepository>(),
+      keyRepository: sl<KeyRepository>(),
+      planRepository: sl<PlanRepository>(),
+    ),
   );
   sl.registerLazySingleton<AudioRecorderPort>(() => RecordAudioRecorder());
   sl.registerLazySingleton<CloudVoiceRepository>(

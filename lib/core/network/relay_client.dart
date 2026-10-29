@@ -10,6 +10,7 @@ import 'dto/config_dto.dart';
 import 'dto/error_dto.dart';
 import 'dto/install_dto.dart';
 import 'dto/judge_dto.dart';
+import 'dto/pro_dto.dart';
 import 'dto/problem_dto.dart';
 import 'dto/repair_dto.dart';
 import 'dto/stt_dto.dart';
@@ -39,15 +40,15 @@ class ConfigResponse {
   final String? etag;
 }
 
-/// The nine relay calls, with the header rules from
+/// The relay calls, with the header rules from
 /// contracts/relay-client.md applied once here rather than left to every
 /// caller to remember:
 ///
 /// | Header | Sent on |
 /// |---|---|
 /// | `X-Install-Id` | every call except `/v1/config` and `/v1/practice`; also sent on `/v1/stt` |
-/// | `X-User-Key` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial`, never `/v1/stt` |
-/// | `X-Provider` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial` |
+/// | `X-User-Key` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial`, never `/v1/stt`, never `/v1/pro/*` |
+/// | `X-Provider` | `/v1/chat`, `/v1/judge`, `/v1/repair` only — never `/v1/trial`, never `/v1/pro/*` |
 ///
 /// This class only ever throws [RelayException] (built from
 /// `mapErrorEnvelope` — the one code path for a non-2xx body and an SSE
@@ -286,6 +287,32 @@ class RelayClient {
       }
       throw RelayException(_mapTransportOrEnvelope(e, requestProblemId: '', callKind: RelayCallKind.chat));
     }
+  }
+
+  /// `GET /v1/pro/status` — the device's plan, subscription and usage.
+  /// `X-Install-Id` only: no user key, no provider.
+  Future<ProStatusDto> proStatus({required String installId}) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _dio.get<Map<String, dynamic>>(
+        '/v1/pro/status',
+        options: Options(headers: _headers(installId: installId)),
+      );
+      return ProStatusDto.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw RelayException(_mapTransportOrEnvelope(e, requestProblemId: '', callKind: RelayCallKind.chat));
+    }
+  }
+
+  /// `POST /v1/pro/checkout` — starts a PayPal sandbox subscription. The
+  /// answer is an `approve_url` to open in the system browser, or
+  /// `already_active`. `X-Install-Id` only.
+  Future<ProCheckoutDto> proCheckout({required String installId}) async {
+    final Map<String, Object?> body = await _postJson(
+      '/v1/pro/checkout',
+      const <String, Object?>{},
+      headers: _headers(installId: installId),
+    );
+    return ProCheckoutDto.fromJson(body);
   }
 
   // --- internals ---------------------------------------------------

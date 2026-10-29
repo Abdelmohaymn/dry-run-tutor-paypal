@@ -21,10 +21,16 @@ Map<String, dynamic> _$ChatConfigDtoToJson(ChatConfigDto instance) =>
     };
 
 TrialConfigDto _$TrialConfigDtoFromJson(Map<String, dynamic> json) =>
-    TrialConfigDto(turnCap: (json['turn_cap'] as num).toInt());
+    TrialConfigDto(
+      turnCap: (json['turn_cap'] as num).toInt(),
+      replayEnabled: json['replay_enabled'] as bool? ?? true,
+    );
 
 Map<String, dynamic> _$TrialConfigDtoToJson(TrialConfigDto instance) =>
-    <String, dynamic>{'turn_cap': instance.turnCap};
+    <String, dynamic>{
+      'turn_cap': instance.turnCap,
+      'replay_enabled': instance.replayEnabled,
+    };
 
 RepairConfigDto _$RepairConfigDtoFromJson(Map<String, dynamic> json) =>
     RepairConfigDto(
@@ -54,6 +60,23 @@ Map<String, dynamic> _$VoiceConfigDtoToJson(VoiceConfigDto instance) =>
       'max_clip_seconds': instance.maxClipSeconds,
     };
 
+ProConfigDto _$ProConfigDtoFromJson(Map<String, dynamic> json) => ProConfigDto(
+  enabled: json['enabled'] as bool,
+  priceLabel: json['price_label'] as String,
+  sessionsPerDay: (json['sessions_per_day'] as num).toInt(),
+  voiceSecondsPerDay: (json['voice_seconds_per_day'] as num).toInt(),
+  manageUrl: json['manage_url'] as String,
+);
+
+Map<String, dynamic> _$ProConfigDtoToJson(ProConfigDto instance) =>
+    <String, dynamic>{
+      'enabled': instance.enabled,
+      'price_label': instance.priceLabel,
+      'sessions_per_day': instance.sessionsPerDay,
+      'voice_seconds_per_day': instance.voiceSecondsPerDay,
+      'manage_url': instance.manageUrl,
+    };
+
 ConfigDto _$ConfigDtoFromJson(Map<String, dynamic> json) => ConfigDto(
   minSupportedVersion: json['min_supported_version'] as String,
   killedProblemIds: (json['killed_problem_ids'] as List<dynamic>)
@@ -71,6 +94,9 @@ ConfigDto _$ConfigDtoFromJson(Map<String, dynamic> json) => ConfigDto(
   voice: json['voice'] == null
       ? null
       : VoiceConfigDto.fromJson(json['voice'] as Map<String, dynamic>),
+  pro: json['pro'] == null
+      ? null
+      : ProConfigDto.fromJson(json['pro'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$ConfigDtoToJson(ConfigDto instance) => <String, dynamic>{
@@ -82,4 +108,5 @@ Map<String, dynamic> _$ConfigDtoToJson(ConfigDto instance) => <String, dynamic>{
   'keyed_providers': instance.keyedProviders,
   'repair': instance.repair?.toJson(),
   'voice': instance.voice?.toJson(),
+  'pro': instance.pro?.toJson(),
 };

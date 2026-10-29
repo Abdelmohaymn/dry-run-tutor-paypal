@@ -15,6 +15,9 @@ import { sessionResetRoute } from "./routes/session-reset";
 import { sttRoute } from "./routes/stt";
 import { practiceRoute } from "./routes/practice";
 import { trialRoute } from "./routes/trial";
+import { proRoute } from "./routes/pro";
+import { paypalReturnRoute } from "./routes/paypal-return";
+import { paypalWebhookRoute } from "./routes/paypal-webhook";
 import { configRoute } from "./routes/config";
 import { privacyRoute } from "./routes/privacy";
 import { notifyRoute } from "./routes/notify";
@@ -32,6 +35,11 @@ app.use("/v1/repair", installAuth);
 app.route("/v1/repair", repairRoute);
 app.use("/v1/trial", installAuth);
 app.route("/v1/trial", trialRoute);
+// Pro Plus (feature 009). /v1/paypal/webhook is mounted separately, WITHOUT
+// installAuth: PayPal calls it, not a phone.
+app.use("/v1/pro/*", installAuth);
+app.route("/v1/pro", proRoute);
+app.route("/v1/paypal", paypalWebhookRoute);
 app.use("/v1/daily", installAuth);
 app.route("/v1/daily", dailyRoute);
 app.use("/v1/problems", installAuth);
@@ -48,6 +56,8 @@ app.route("/v1/notify", notifyRoute);
 // Public, unauthenticated, and deliberately outside /v1: this is a page for
 // people and store reviewers, not an API surface.
 app.route("/privacy", privacyRoute);
+// Where PayPal's approval page sends the browser (feature 009). Public HTML, outside /v1 for the same reason.
+app.route("/paypal", paypalReturnRoute);
 
 app.onError((err, c) => {
   if (err instanceof AppError) {

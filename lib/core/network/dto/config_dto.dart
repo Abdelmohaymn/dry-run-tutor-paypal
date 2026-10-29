@@ -21,17 +21,23 @@ class ChatConfigDto {
   Map<String, dynamic> toJson() => _$ChatConfigDtoToJson(this);
 }
 
-/// `config.schema.json#/properties/trial` — only `turn_cap`.
+/// `config.schema.json#/properties/trial` — `turn_cap` and `replay_enabled`.
 /// `ground_truth_tier`, `condense`, `daily_session_cap`, and `pool` are
 /// server business the app has no reason to read and does not declare a
 /// field for.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class TrialConfigDto {
-  TrialConfigDto({required this.turnCap});
+  TrialConfigDto({required this.turnCap, this.replayEnabled = true});
 
   factory TrialConfigDto.fromJson(Map<String, dynamic> json) => _$TrialConfigDtoFromJson(json);
 
   final int turnCap;
+
+  /// Feature 009 (FR-027). False means a free device gets today's problem
+  /// once; "Practice again" and the problem picker are Pro or own-key. Absent
+  /// means true, which is the behaviour before the lever existed.
+  @JsonKey(defaultValue: true)
+  final bool replayEnabled;
 
   Map<String, dynamic> toJson() => _$TrialConfigDtoToJson(this);
 }
@@ -78,10 +84,35 @@ class VoiceConfigDto {
   Map<String, dynamic> toJson() => _$VoiceConfigDtoToJson(this);
 }
 
+/// `config.schema.json#/properties/pro` — only the five keys the app needs to
+/// show the offer and open PayPal's manage page. **No field for `plan_id`,
+/// the token ceilings or `recheck_after_seconds`** — those are server business.
+@JsonSerializable(fieldRename: FieldRename.snake)
+class ProConfigDto {
+  ProConfigDto({
+    required this.enabled,
+    required this.priceLabel,
+    required this.sessionsPerDay,
+    required this.voiceSecondsPerDay,
+    required this.manageUrl,
+  });
+
+  factory ProConfigDto.fromJson(Map<String, dynamic> json) => _$ProConfigDtoFromJson(json);
+
+  final bool enabled;
+  final String priceLabel;
+  final int sessionsPerDay;
+  final int voiceSecondsPerDay;
+  final String manageUrl;
+
+  Map<String, dynamic> toJson() => _$ProConfigDtoToJson(this);
+}
+
 /// `GET /v1/config` response, restricted to the keys FR-008c permits the
 /// app to read: `min_supported_version`, `update_url`, `killed_problem_ids`,
 /// `chat.*`, `trial.turn_cap`, `keyed_providers`, `repair.*` (feature 004,
-/// three fields only), `voice.*` (server speech-to-text, three fields only).
+/// three fields only), `voice.*` (server speech-to-text, three fields only),
+/// `pro.*` (Pro Plus, feature 009, five fields only).
 /// The relay still sends `content_manifest_url` for
 /// pre-006 apps; it is ignored here, like every other unknown key.
 ///
@@ -104,6 +135,7 @@ class ConfigDto {
     this.keyedProviders,
     this.repair,
     this.voice,
+    this.pro,
   });
 
   factory ConfigDto.fromJson(Map<String, dynamic> json) => _$ConfigDtoFromJson(json);
@@ -128,6 +160,9 @@ class ConfigDto {
   /// Absent means server-side voice is off and the app uses on-device
   /// speech recognition only.
   final VoiceConfigDto? voice;
+
+  /// Absent means Pro Plus is off: no offer anywhere (Constitution X.9).
+  final ProConfigDto? pro;
 
   Map<String, dynamic> toJson() => _$ConfigDtoToJson(this);
 }

@@ -923,4 +923,136 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageCopiedNotice => 'Copied';
+
+  @override
+  String get settingsPlanLabel => 'Plan';
+
+  @override
+  String get planTitle => 'Plan';
+
+  @override
+  String get planFreeName => 'Free';
+
+  @override
+  String get planProName => 'Pro Plus';
+
+  @override
+  String get planOwnKey => 'Your own key';
+
+  @override
+  String get planOwnKeyProNote =>
+      'Your own key is in use. Pro Plus is an alternative if you\'d rather not use a key.';
+
+  @override
+  String get planUsageHeading => 'Usage';
+
+  @override
+  String planSessionsUsage(int used, int limit) {
+    return 'Sessions today: $used of $limit';
+  }
+
+  @override
+  String planSessionsUsageLifetime(int used, int limit) {
+    return 'Free sessions used: $used of $limit';
+  }
+
+  @override
+  String planVoiceUsage(int used, int limit) {
+    return 'Voice today: $used of $limit min';
+  }
+
+  @override
+  String planRenews(String date) {
+    return 'Renews on $date';
+  }
+
+  @override
+  String planEnds(String date) {
+    return 'Ends on $date';
+  }
+
+  @override
+  String get planEndedNotice => 'Your Pro Plus subscription is not active.';
+
+  @override
+  String get planProSessionsUsed =>
+      'Today\'s Pro sessions are used. They come back tomorrow (UTC).';
+
+  @override
+  String get planProCapacity =>
+      'Pro Plus is at capacity for now. Try again later, or add your own key.';
+
+  @override
+  String get planOfferTitle => 'Pro Plus';
+
+  @override
+  String planOfferLimits(int sessions, int minutes) {
+    return '$sessions sessions a day and $minutes minutes of voice a day, with no key needed.';
+  }
+
+  @override
+  String get planOfferPayPal =>
+      'Billed through PayPal. This build uses PayPal\'s test environment, so no real money is charged.';
+
+  @override
+  String get planSubscribe => 'Subscribe';
+
+  @override
+  String get planManage => 'Manage or cancel in PayPal';
+
+  @override
+  String planLastChecked(String date) {
+    return 'Last checked $date';
+  }
+
+  @override
+  String get planConfirming => 'Confirming with PayPal…';
+
+  @override
+  String get planAwaitingReturn => 'Finish in PayPal, then come back here.';
+
+  @override
+  String get planActivated => 'Pro Plus is active.';
+
+  @override
+  String get planNotCompleted => 'Subscription not completed.';
+
+  @override
+  String get planPayPalUnavailable => 'PayPal is unavailable. Try again later.';
+
+  @override
+  String get planAlreadyActive => 'Pro Plus is already active on this device.';
+
+  @override
+  String get planUnavailable => 'The plan can\'t be loaded right now.';
+
+  @override
+  String get planRetry => 'Try again';
+
+  @override
+  String get proBadgeLabel => 'Pro';
+
+  @override
+  String get keyPromptProSessionsTitle => 'Today\'s Pro sessions are used';
+
+  @override
+  String get keyPromptProSessionsBody =>
+      'Today\'s Pro sessions are used. They come back tomorrow (UTC). Add your own key to keep going now.';
+
+  @override
+  String get keyPromptProCapacityTitle => 'Pro Plus is at capacity';
+
+  @override
+  String get keyPromptProCapacityBody =>
+      'Pro Plus is at capacity for now. Add your own key to keep going.';
+
+  @override
+  String get keyPromptProAction => 'Get Pro Plus';
+
+  @override
+  String get keyPromptReplayLockedTitle => 'Practice again is part of Pro Plus';
+
+  @override
+  String get keyPromptReplayLockedBody =>
+      'Free practice is today\'s problem, once. Pro Plus adds Practice again and the other problems. Your own key unlocks them too.';
 }

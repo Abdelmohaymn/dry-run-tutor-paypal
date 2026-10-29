@@ -76,6 +76,30 @@ const voiceSchema = z
   })
   .strict();
 
+/**
+ * Pro Plus (feature 009, PayPal sandbox). Optional: absent means Pro is off
+ * everywhere (Constitution X.9 "off by default"). Read it through
+ * `proConfig()`. `plan_id`, the ceilings and `recheck_after_seconds` are the
+ * Worker's own and are stripped from GET /v1/config.
+ */
+const proSchema = z
+  .object({
+    enabled: z.boolean(),
+    plan_id: z.string().regex(/^P-[A-Z0-9]{8,40}$/),
+    price_label: z.string().min(1).max(40),
+    sessions_per_day: z.number().int().min(1).max(50),
+    voice_seconds_per_day: z.number().int().min(0).max(3600),
+    daily_token_ceiling: z.number().int().min(0),
+    total_token_ceiling: z.number().int().min(0),
+    recheck_after_seconds: z.number().int().min(60).default(21600),
+    manage_url: z
+      .string()
+      .url()
+      .startsWith("https://www.sandbox.paypal.com/")
+      .default("https://www.sandbox.paypal.com/myaccount/autopay/"),
+  })
+  .strict();
+
 export const runtimeConfigSchema = z
   .object({
     min_supported_version: z.string().regex(/^\d+\.\d+\.\d+$/),
@@ -114,6 +138,8 @@ export const runtimeConfigSchema = z
      * null.
      */
     voice: voiceSchema.optional(),
+    /** Pro Plus (feature 009). Optional; absent means Pro is off. See `proConfig()`. */
+    pro: proSchema.optional(),
     /**
      * The global daily pointer (FR-035d). Present means every install —
      * new or old — is handed the SAME problem on a given day, computed
@@ -191,6 +217,12 @@ export const runtimeConfigSchema = z
         sessions_per_device: z.number().int().min(1).max(50).default(1),
         /** New trial sessions per network (hashed IP) per UTC day. 0 disables it. */
         ip_daily_session_cap: z.number().int().min(0).default(15),
+        /**
+         * FR-027: false limits a free device to today's daily problem, once
+         * (no "Practice again", no problem picker). Optional with a default
+         * of true, which is today's behaviour exactly.
+         */
+        replay_enabled: z.boolean().default(true),
         pool: z.array(trialPoolMemberSchema).min(1),
       })
       .strict(),
@@ -228,6 +260,13 @@ export function webConfig(cfg: RuntimeConfig): NonNullable<RuntimeConfig["web"]>
 /** `cfg.voice`, or null when the block is absent or `enabled` is false (voice off). */
 export function voiceConfig(cfg: RuntimeConfig): NonNullable<RuntimeConfig["voice"]> | null {
   return cfg.voice && cfg.voice.enabled ? cfg.voice : null;
+}
+
+export type ProConfig = NonNullable<RuntimeConfig["pro"]>;
+
+/** `cfg.pro`, or null when the block is absent or `enabled` is false (Pro off). */
+export function proConfig(cfg: RuntimeConfig): ProConfig | null {
+  return cfg.pro && cfg.pro.enabled ? cfg.pro : null;
 }
 
 /** Reads and validates the single `config` row. Throws on a payload that fails the schema — an invalid config is never served. */

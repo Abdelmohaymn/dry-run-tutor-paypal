@@ -36,4 +36,13 @@ class VoiceQuotaStore {
     await _prefs.setInt(_secondsLeftKey, q.secondsLeft);
     await _prefs.setInt(_maxClipSecondsKey, q.maxClipSeconds);
   }
+
+  /// Forgets the stored quota. Called when the plan changes (free → Pro), so
+  /// a device that had hit its free limit asks the relay again instead of
+  /// trusting a stale "0 seconds left" until midnight (research.md R-13).
+  Future<void> clear() async {
+    await _prefs.remove(_dateKey);
+    await _prefs.remove(_secondsLeftKey);
+    await _prefs.remove(_maxClipSecondsKey);
+  }
 }

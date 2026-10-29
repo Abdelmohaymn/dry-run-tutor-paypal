@@ -27,6 +27,11 @@ declare module "cloudflare:test" {
     // Feature 007, web-only routes.
     WEB_EVENT_RL: RateLimit;
     TURNSTILE_SECRET: string;
+    // Feature 009 (Pro Plus). Placeholders from .dev.vars; PayPal is stubbed with fetchMock.
+    PAYPAL_CLIENT_ID: string;
+    PAYPAL_CLIENT_SECRET: string;
+    PAYPAL_WEBHOOK_ID: string;
+    PRO_RL: RateLimit;
   }
 }
 

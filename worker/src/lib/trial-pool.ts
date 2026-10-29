@@ -24,7 +24,7 @@ export interface TrialPoolMember {
   structured_extra_body?: Record<string, unknown>;
 }
 
-function estimateFor(leg: TrialLeg): number {
+export function estimateFor(leg: TrialLeg): number {
   return leg === "chat" ? TRIAL_ESTIMATE_CHAT : TRIAL_ESTIMATE_JUDGE;
 }
 
@@ -42,6 +42,12 @@ export async function selectMember(
   db: D1Database,
   now: Date,
   exclude: ReadonlySet<string> = new Set(),
+  /**
+   * false skips the member's own daily_token_budget check (the cooldown still
+   * applies). Pro calls (feature 009) pass false: they are capped by their own
+   * ledger, not by the free daily budget.
+   */
+  enforceBudget = true,
 ): Promise<TrialPoolMember | null> {
   const enabled = cfg.trial.pool.filter((m) => m.enabled && !exclude.has(m.id));
   const candidates =
@@ -56,12 +62,30 @@ export async function selectMember(
       .bind(date, m.id)
       .first<{ tokens_spent: number; cooldown_until: string | null }>();
     if (row) {
-      if (row.tokens_spent >= m.daily_token_budget) continue;
+      if (enforceBudget && row.tokens_spent >= m.daily_token_budget) continue;
       if (row.cooldown_until && new Date(row.cooldown_until) > now) continue;
     }
     return m;
   }
   return null;
+}
+
+/**
+ * `selectMember()` for a caller that has no use for "none": throws
+ * TRIAL_UNAVAILABLE instead. Lives here so that code stays in the files
+ * trial-isolation.test.ts allows to throw it (pooled-calls.ts shares the
+ * condensation lookup between the free and Pro paths).
+ */
+export async function selectMemberOrUnavailable(
+  leg: TrialLeg,
+  cfg: RuntimeConfig,
+  db: D1Database,
+  now: Date,
+  enforceBudget = true,
+): Promise<TrialPoolMember> {
+  const member = await selectMember(leg, cfg, db, now, new Set(), enforceBudget);
+  if (!member) throw new AppError("TRIAL_UNAVAILABLE");
+  return member;
 }
 
 async function reserveEstimate(db: D1Database, date: string, providerId: string, estimate: number): Promise<void> {
@@ -126,6 +150,27 @@ async function setCooldown(db: D1Database, date: string, providerId: string, coo
     .run();
 }
 
+/**
+ * Where a pool call's token estimate is reserved, released and settled
+ * (feature 009, data-model.md A5). The free path writes `provider_day`; Pro
+ * writes `pro_spend` (pro-spend.ts), so the two never drain each other.
+ */
+export interface BudgetLedger {
+  /** false: selectMember skips the member's own daily_token_budget check (cooldown still applies). */
+  readonly enforceMemberBudget: boolean;
+  reserve(db: D1Database, date: string, memberId: string, estimate: number): Promise<void>;
+  release(db: D1Database, date: string, memberId: string, estimate: number): Promise<void>;
+  settle(db: D1Database, now: Date, memberId: string, leg: TrialLeg, actual: number): Promise<void>;
+}
+
+/** The free trial path's ledger: `provider_day.tokens_spent`, exactly as before Pro Plus. */
+export const freeLedger: BudgetLedger = {
+  enforceMemberBudget: true,
+  reserve: reserveEstimate,
+  release: releaseEstimate,
+  settle: settleTrialBudget,
+};
+
 export interface RunLegResult<T> {
   member: TrialPoolMember;
   result: T;
@@ -147,17 +192,18 @@ export async function runTrialRepair(
   db: D1Database,
   call: (opts: ProviderCallOptions) => Promise<TrialRepairResult | null>,
   secretFor: (bindingName: string) => string,
+  ledger: BudgetLedger = freeLedger,
 ): Promise<TrialRepairResult | null> {
   const now = new Date();
   let leg: RunLegResult<TrialRepairResult | null>;
   try {
-    leg = await runLeg("chat", cfg, db, now, call, secretFor);
+    leg = await runLeg("chat", cfg, db, now, call, secretFor, ledger);
   } catch (error) {
     if (error instanceof AppError && error.code === "TRIAL_UNAVAILABLE") return null;
     throw error;
   }
   if (leg.result !== null) {
-    await settleTrialBudget(
+    await ledger.settle(
       db,
       now,
       leg.member.id,
@@ -185,6 +231,7 @@ export async function runLeg<T>(
   now: Date,
   call: (opts: ProviderCallOptions) => Promise<T>,
   secretFor: (bindingName: string) => string,
+  ledger: BudgetLedger = freeLedger,
 ): Promise<RunLegResult<T>> {
   const tried = new Set<string>();
   const date = now.toISOString().slice(0, 10);
@@ -192,7 +239,7 @@ export async function runLeg<T>(
   let lastError: AppError | null = null;
 
   for (;;) {
-    const member = await selectMember(leg, cfg, db, now, tried);
+    const member = await selectMember(leg, cfg, db, now, tried, ledger.enforceMemberBudget);
     if (!member) {
       // A member that answered badly says nothing about the pool's budget,
       // so the learner gets that retryable error, not "trial unavailable".
@@ -200,7 +247,7 @@ export async function runLeg<T>(
     }
     tried.add(member.id);
 
-    await reserveEstimate(db, date, member.id, estimate);
+    await ledger.reserve(db, date, member.id, estimate);
 
     try {
       const result = await call({
@@ -211,7 +258,7 @@ export async function runLeg<T>(
       });
       return { member, result };
     } catch (err) {
-      await releaseEstimate(db, date, member.id, estimate);
+      await ledger.release(db, date, member.id, estimate);
       // A member that is rate-limited, out of quota, or simply not
       // answering is a member this call should stop waiting on and the
       // next one should be tried — that is the whole reason the pool has

@@ -187,7 +187,7 @@ void main() {
     // less `/keys/rate-limited` (now a popup over the conversation).
     // The count is asserted so a parameterised or history-shaped route
     // cannot be added without this test being looked at (FR-039d).
-    expect(AppRoute.values, hasLength(22));
+    expect(AppRoute.values, hasLength(23));
     for (final AppRoute route in AppRoute.values) {
       expect(route.path, isNot(contains(RegExp(r':[a-zA-Z]'))), reason: '${route.path} looks parameterised');
       expect(route.path, isNot(contains('history')));
