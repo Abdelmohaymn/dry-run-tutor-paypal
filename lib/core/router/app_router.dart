@@ -1,8 +1,11 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../config/brand.dart';
 import '../config/remote_config_repository.dart';
 import '../config/runtime_config.dart';
+import '../di/service_locator.dart';
 import 'app_route.dart';
 import 'placeholder_screen.dart';
 import '../../features/assessment/domain/assessment_repository.dart';
@@ -14,6 +17,7 @@ import '../../features/chat/presentation/daily_screen.dart';
 import '../../features/chat/presentation/daily_session_shell.dart';
 import '../../features/daily/presentation/review_day_screen.dart';
 import '../../features/daily/presentation/withdrawn_screen.dart';
+import '../../features/keys/domain/key_repository.dart';
 import '../../features/keys/presentation/key_entry_screen.dart';
 import '../../features/keys/presentation/wall_screen.dart';
 import '../../features/onboarding/domain/install_repository.dart';
@@ -21,6 +25,10 @@ import '../../features/onboarding/presentation/mic_rationale_screen.dart';
 import '../../features/onboarding/presentation/practice_screen.dart';
 import '../../features/onboarding/presentation/seeding_screen.dart';
 import '../../features/onboarding/presentation/welcome_screen.dart';
+import '../../features/plan/domain/plan_repository.dart';
+import '../../features/plan/domain/replay_gate.dart';
+import '../../features/plan/presentation/plan_cubit.dart';
+import '../../features/plan/presentation/plan_screen.dart';
 import '../../features/problem/domain/problem_repository.dart';
 import '../../features/problem/presentation/problem_picker_screen.dart';
 import '../../features/settings/presentation/key_management_screen.dart';
@@ -86,6 +94,10 @@ GoRouter buildAppRouter({
   required SettingsRepository settingsRepository,
   required TrustedTimeSource timeSource,
   required String currentAppVersion,
+  // Feature 009 (Pro Plus). Optional so every existing `buildAppRouter(...)`
+  // call in tests keeps compiling; without them the plan is simply absent.
+  PlanRepository? planRepository,
+  ReplayGate? replayGate,
 }) {
   final Set<String> shellPaths = <String>{
     AppRoute.daily.path,
@@ -109,13 +121,15 @@ GoRouter buildAppRouter({
 
   return GoRouter(
     initialLocation: AppRoute.daily.path,
-    redirect: (_, GoRouterState state) => resolveAppRedirect(
-      state.matchedLocation,
-      configRepository: configRepository,
-      installRepository: installRepository,
-      problemRepository: problemRepository,
-      currentAppVersion: currentAppVersion,
-    ),
+    redirect: (_, GoRouterState state) =>
+        deepLinkLocation(state.uri) ??
+        resolveAppRedirect(
+          state.matchedLocation,
+          configRepository: configRepository,
+          installRepository: installRepository,
+          problemRepository: problemRepository,
+          currentAppVersion: currentAppVersion,
+        ),
     routes: <RouteBase>[
       ShellRoute(
         builder: (BuildContext context, GoRouterState state, Widget child) {
@@ -133,7 +147,11 @@ GoRouter buildAppRouter({
           GoRoute(
             path: AppRoute.daily.path,
             name: AppRoute.daily.path,
-            builder: (_, _) => const DailyScreen(),
+            builder: (_, _) => DailyScreen(
+              planRepository: planRepository,
+              proOffered: configRepository.cached()?.pro != null,
+              replayGate: replayGate,
+            ),
           ),
           GoRoute(
             path: AppRoute.problemPicker.path,
@@ -179,7 +197,7 @@ GoRouter buildAppRouter({
           GoRoute(
             path: AppRoute.sessionVerdict.path,
             name: AppRoute.sessionVerdict.path,
-            builder: (_, _) => const VerdictScreen(),
+            builder: (_, _) => VerdictScreen(replayGate: replayGate),
           ),
           GoRoute(
             path: AppRoute.sessionReveal.path,
@@ -248,12 +266,24 @@ GoRouter buildAppRouter({
       GoRoute(
         path: AppRoute.settings.path,
         name: AppRoute.settings.path,
-        builder: (_, _) => const SettingsScreen(),
+        builder: (_, _) => SettingsScreen(planStatus: planRepository?.cached()),
       ),
       GoRoute(
         path: AppRoute.settingsKey.path,
         name: AppRoute.settingsKey.path,
         builder: (_, _) => const KeyManagementScreen(),
+      ),
+      GoRoute(
+        path: AppRoute.settingsPlan.path,
+        name: AppRoute.settingsPlan.path,
+        builder: (_, _) => BlocProvider<PlanCubit>(
+          create: (_) => PlanCubit(
+            planRepository!,
+            keyRepository: sl<KeyRepository>(),
+            configRepository: configRepository,
+          ),
+          child: const PlanScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoute.settingsReminder.path,
@@ -273,6 +303,13 @@ GoRouter buildAppRouter({
       // already running additionally needs native `onNewIntent`
       // forwarding, which is out of scope here.
       GoRoute(path: '/p/:problemId', redirect: (_, _) => AppRoute.daily.path),
+      // Feature 009: the PayPal return page offers `dryruntutor://pro/return`.
+      // On a cold launch it opens the Plan screen; on a warm one Android brings
+      // the app forward and the Plan screen's resume handling does the rest.
+      GoRoute(
+        path: '/pro/return',
+        redirect: (_, _) => AppRoute.settingsPlan.path,
+      ),
       for (final AppRoute route in AppRoute.values)
         if (!shellPaths.contains(route.path) &&
             route != AppRoute.welcome &&
@@ -284,6 +321,7 @@ GoRouter buildAppRouter({
             route != AppRoute.withdrawn &&
             route != AppRoute.settings &&
             route != AppRoute.settingsKey &&
+            route != AppRoute.settingsPlan &&
             route != AppRoute.settingsReminder &&
             route != AppRoute.settingsWipe &&
             route != AppRoute.problemPicker)
@@ -294,6 +332,16 @@ GoRouter buildAppRouter({
           ),
     ],
   );
+}
+
+/// `dryruntutor://pro/return` parses with `pro` as the host, so go_router
+/// would only see `/return` and match nothing. This turns a custom-scheme
+/// link back into the app path it names (`/pro/return`, `/p/<id>`); any
+/// other URI returns null and goes through the normal guards.
+@visibleForTesting
+String? deepLinkLocation(Uri uri) {
+  if (uri.scheme != AppBrand.deepLinkScheme) return null;
+  return '/${uri.host}${uri.path}';
 }
 
 /// The guard logic itself, decoupled from `GoRouterState` so it is

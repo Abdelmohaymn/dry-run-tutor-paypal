@@ -588,7 +588,9 @@
   "@rateLimitBody": {
     "description": "RATE_LIMITED popup body. The turn resends by itself; seconds is the provider's retry-after.",
     "placeholders": {
-      "seconds": { "type": "int" }
+      "seconds": {
+        "type": "int"
+      }
     }
   },
   "rateLimitOkAction": "OK",
@@ -1143,5 +1145,200 @@
   "messageCopiedNotice": "Copied",
   "@messageCopiedNotice": {
     "description": "Snackbar after a message is copied."
+  },
+  "settingsPlanLabel": "Plan",
+  "@settingsPlanLabel": {
+    "description": "Settings row that opens the Plan screen (Pro Plus, feature 009)."
+  },
+  "planTitle": "Plan",
+  "@planTitle": {
+    "description": "Plan screen app bar title."
+  },
+  "planFreeName": "Free",
+  "@planFreeName": {
+    "description": "Plan screen: the learner is on the free taster."
+  },
+  "planProName": "Pro Plus",
+  "@planProName": {
+    "description": "Plan screen: the learner has an active Pro Plus subscription."
+  },
+  "planOwnKey": "Your own key",
+  "@planOwnKey": {
+    "description": "Plan screen: the learner is using their own provider key, which takes precedence over any plan."
+  },
+  "planOwnKeyProNote": "Your own key is in use. Pro Plus is an alternative if you'd rather not use a key.",
+  "@planOwnKeyProNote": {
+    "description": "Shown under 'Your own key' only while Pro Plus is on offer (FR-013)."
+  },
+  "planUsageHeading": "Usage",
+  "@planUsageHeading": {
+    "description": "Plan screen heading above the sessions and voice usage lines."
+  },
+  "planSessionsUsage": "Sessions today: {used} of {limit}",
+  "@planSessionsUsage": {
+    "description": "Pro sessions used today (UTC) out of the daily allowance.",
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "planSessionsUsageLifetime": "Free sessions used: {used} of {limit}",
+  "@planSessionsUsageLifetime": {
+    "description": "Free-taster sessions used out of the lifetime allowance.",
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "planVoiceUsage": "Voice today: {used} of {limit} min",
+  "@planVoiceUsage": {
+    "description": "Cloud voice minutes used today out of the allowance, rounded up.",
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "planRenews": "Renews on {date}",
+  "@planRenews": {
+    "description": "Pro Plus is active; the date PayPal will bill next. The date is preformatted.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planEnds": "Ends on {date}",
+  "@planEnds": {
+    "description": "Pro Plus was cancelled in PayPal but is paid up until this preformatted date.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planEndedNotice": "Your Pro Plus subscription is not active.",
+  "@planEndedNotice": {
+    "description": "Shown when the subscription is suspended, expired, ended, or a payment failed."
+  },
+  "planProSessionsUsed": "Today's Pro sessions are used. They come back tomorrow (UTC).",
+  "@planProSessionsUsed": {
+    "description": "Pro limit line: the day's Pro session allowance is spent."
+  },
+  "planProCapacity": "Pro Plus is at capacity for now. Try again later, or add your own key.",
+  "@planProCapacity": {
+    "description": "Pro limit line: the operator's Pro allowance is full; this is not the learner's doing."
+  },
+  "planOfferTitle": "Pro Plus",
+  "@planOfferTitle": {
+    "description": "Heading of the Pro Plus offer card."
+  },
+  "planOfferLimits": "{sessions} sessions a day and {minutes} minutes of voice a day, with no key needed.",
+  "@planOfferLimits": {
+    "description": "What Pro Plus adds, from the relay's own levers.",
+    "placeholders": {
+      "sessions": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "planOfferPayPal": "Billed through PayPal. This build uses PayPal's test environment, so no real money is charged.",
+  "@planOfferPayPal": {
+    "description": "Says plainly that subscribing here is a sandbox payment (FR-002)."
+  },
+  "planSubscribe": "Subscribe",
+  "@planSubscribe": {
+    "description": "Primary button on the offer card. Opens PayPal in the system browser."
+  },
+  "planManage": "Manage or cancel in PayPal",
+  "@planManage": {
+    "description": "Opens PayPal's own manage page in the system browser."
+  },
+  "planLastChecked": "Last checked {date}",
+  "@planLastChecked": {
+    "description": "Shown when the plan came from the cache; the date is the relay's time, preformatted.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "planConfirming": "Confirming with PayPal…",
+  "@planConfirming": {
+    "description": "Spinner caption while the checkout is created or the approval is confirmed."
+  },
+  "planAwaitingReturn": "Finish in PayPal, then come back here.",
+  "@planAwaitingReturn": {
+    "description": "Shown while PayPal is open in the browser."
+  },
+  "planActivated": "Pro Plus is active.",
+  "@planActivated": {
+    "description": "Notice after the subscription is confirmed."
+  },
+  "planNotCompleted": "Subscription not completed.",
+  "@planNotCompleted": {
+    "description": "Notice when the learner backed out of PayPal. Not an error."
+  },
+  "planPayPalUnavailable": "PayPal is unavailable. Try again later.",
+  "@planPayPalUnavailable": {
+    "description": "Notice when the checkout could not be started."
+  },
+  "planAlreadyActive": "Pro Plus is already active on this device.",
+  "@planAlreadyActive": {
+    "description": "Notice when the relay says the device is already subscribed."
+  },
+  "planUnavailable": "The plan can't be loaded right now.",
+  "@planUnavailable": {
+    "description": "Plan screen when the first load failed and nothing is cached."
+  },
+  "planRetry": "Try again",
+  "@planRetry": {
+    "description": "Retry button under planUnavailable."
+  },
+  "proBadgeLabel": "Pro",
+  "@proBadgeLabel": {
+    "description": "Small chip shown on Settings and the Plan screen while Pro Plus is active. Never on the conversation screen."
+  },
+  "keyPromptProSessionsTitle": "Today's Pro sessions are used",
+  "@keyPromptProSessionsTitle": {
+    "description": "Key prompt heading for a Pro device whose day's sessions are spent."
+  },
+  "keyPromptProSessionsBody": "Today's Pro sessions are used. They come back tomorrow (UTC). Add your own key to keep going now.",
+  "@keyPromptProSessionsBody": {
+    "description": "Key prompt body: names the reset and offers the key as the way to continue today."
+  },
+  "keyPromptProCapacityTitle": "Pro Plus is at capacity",
+  "@keyPromptProCapacityTitle": {
+    "description": "Key prompt heading for a Pro device when the operator's Pro allowance is full."
+  },
+  "keyPromptProCapacityBody": "Pro Plus is at capacity for now. Add your own key to keep going.",
+  "@keyPromptProCapacityBody": {
+    "description": "Key prompt body: capacity, not anything the learner spent."
+  },
+  "keyPromptProAction": "Get Pro Plus",
+  "@keyPromptProAction": {
+    "description": "Third button on a key prompt when Pro Plus is on offer. Opens the Plan screen."
+  },
+  "keyPromptReplayLockedTitle": "Practice again is part of Pro Plus",
+  "@keyPromptReplayLockedTitle": {
+    "description": "Prompt shown when a free learner taps Practice again or the problem picker and replay is off (FR-027)."
+  },
+  "keyPromptReplayLockedBody": "Free practice is today's problem, once. Pro Plus adds Practice again and the other problems. Your own key unlocks them too.",
+  "@keyPromptReplayLockedBody": {
+    "description": "Explains the free tier on the PayPal deployment before anything is spent."
   }
 }

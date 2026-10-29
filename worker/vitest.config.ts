@@ -117,6 +117,10 @@ export default defineWorkersConfig(async () => {
             name: "unit",
             include: ["test/unit/**/*.test.ts"],
             setupFiles: ["./test/apply-migrations.ts"],
+            // Each file boots its own isolated runtime; with ~110 files on a
+            // 4-core runner a slow test (chat.cap sends 16 turns in a row) can
+            // pass the 5 s default under load while taking ~0.3 s on its own.
+            testTimeout: 15000,
             poolOptions,
           },
         }),
@@ -125,6 +129,8 @@ export default defineWorkersConfig(async () => {
             name: "contract",
             include: ["test/contract/**/*.test.ts"],
             setupFiles: ["./test/apply-migrations.ts"],
+            // See the unit project: load, not logic, is what stretches a test past 5 s.
+            testTimeout: 15000,
             poolOptions,
           },
         }),

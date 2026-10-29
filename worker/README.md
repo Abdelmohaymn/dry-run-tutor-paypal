@@ -70,6 +70,8 @@ Levers, one line each — full detail in `contracts/config.schema.json` and `spe
 | `ads.enabled` | `false` takes both ad surfaces off every install — see below. |
 | `trial.turn_cap` / `trial.ground_truth_tier` / `trial.condense` / `trial.daily_session_cap` / `trial.pool` | The trial funnel's own profile and provider pool. |
 | `voice.enabled` / `voice.seconds_per_device` / `voice.max_clip_seconds` | Server-side speech-to-text (`POST /v1/stt`): on/off, seconds per device per UTC day, longest clip. Absent means off. |
+| `trial.replay_enabled` | `false` limits a free device to today's problem, once: no "Practice again", no problem picker (Pro and keyed devices unaffected). Absent means `true`. See "Replay lever". |
+| `pro.enabled` / `pro.plan_id` / `pro.price_label` / `pro.sessions_per_day` / `pro.voice_seconds_per_day` / `pro.daily_token_ceiling` / `pro.total_token_ceiling` / `pro.recheck_after_seconds` / `pro.manage_url` | Pro Plus (PayPal sandbox): on/off, the plan, what it shows and gives, the operator-credit ceilings, how often a subscription is re-read. Absent means off. `plan_id`, the ceilings and `recheck_after_seconds` never leave the Worker. See "Pro lever". |
 | `trial.pool[].structured_extra_body` / `providers.<id>.structured_extra_body` | Extra body fields for structured calls (judge, finish check) only. Nemotron needs thinking off here — see below. |
 
 Switching a key or model, for the trial pool or for learner keys: follow [`docs/switching-models.md`](../docs/switching-models.md).
@@ -104,6 +106,57 @@ npx wrangler d1 execute dry-run-dev --env dev --remote \
 ```
 
 Use `dry-run-prod` and `--env prod` for production, and enable the lever last, once the app release that uses it is live.
+
+### Pro lever
+
+Pro Plus (feature 009) ships dormant: a config row without a `pro` block means every Pro route is a no-op and no device is ever served under Pro rules. It is **PayPal sandbox only**: the API base is a constant (`worker/src/lib/paypal.ts`), and a unit test fails the build if a live PayPal host appears in the source. Routes it adds:
+
+| Route | Who calls it | Notes |
+|---|---|---|
+| `POST /v1/pro/checkout` | the app (install-auth) | Creates a sandbox subscription bound to the calling device and returns PayPal's approve link. |
+| `GET /v1/pro/status` | the app (install-auth) | The device's plan, subscription and usage. Re-reads PayPal when a row is pending or stale. |
+| `POST /v1/paypal/webhook` | PayPal | No install-auth. Verified through PayPal's verify API, then the subscription is re-read. |
+| `GET /paypal/return`, `GET /paypal/cancel` | the learner's browser | Public pages PayPal sends the browser back to. |
+
+Secrets (set with `npx wrangler secret put <NAME> --env <env>`, entered interactively, never in a file): `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`. `worker/.dev.vars` carries placeholders for the tests.
+
+Turn Pro on (read the budget note in `specs/009-paypal-pro-plus/research.md` R-4 first and size the two ceilings against the remaining operator credit):
+
+```sh
+npx wrangler d1 execute <db> --env <env> --remote \
+  --command "UPDATE config SET payload = json_set(payload, '\$.pro', json('{\"enabled\":true,\"plan_id\":\"P-XXXX\",\"price_label\":\"\$4.99 / month\",\"sessions_per_day\":5,\"voice_seconds_per_day\":900,\"daily_token_ceiling\":1875000,\"total_token_ceiling\":37500000}')), updated_at = datetime('now') WHERE id = 1"
+```
+
+Kill switch. Pro devices are served by the free path on their next request; nothing errors and nothing is refunded:
+
+```sh
+npx wrangler d1 execute <db> --env <env> --remote \
+  --command "UPDATE config SET payload = json_set(payload, '\$.pro.enabled', json('false')), updated_at = datetime('now') WHERE id = 1"
+```
+
+The ceilings gate **new** Pro sessions only; a Pro session already in flight runs to its end. Pro spend is its own ledger (`pro_spend`), apart from the free pool's budget. `npm run paypal:setup` creates the sandbox product and plan and prints the plan id; `npm run paypal:admin -- <suspend|activate|cancel|show> <I-id>` drives a subscription to produce real webhook events.
+
+### Replay lever
+
+`trial.replay_enabled: false` makes the **free** trial path give a device today's daily problem, once. A second go (after "Practice again", which calls `POST /v1/session/reset`) or any other problem is refused with `TRIAL_CONSUMED`. Keyed learners never call `/v1/trial`, and Pro devices are served before the gate, so neither is affected. Absent means `true`, which is how the Nebius deployment behaves. Set it only on the PayPal deployment's config row.
+
+### PayPal deployment
+
+Pro Plus runs on its own Worker and D1, never on the Nebius `prod` deployment (research.md R-16). The `paypal` env in `wrangler.jsonc` is `dry-run-tutor-paypal`. Owner steps, once:
+
+```sh
+npx wrangler d1 create dry-run-tutor-paypal          # paste the id into wrangler.jsonc, env.paypal
+npx wrangler d1 migrations apply dry-run-tutor-paypal --env paypal --remote
+# copy the prod config row into it, then run hackathon/paypal-config.sql with --env paypal
+npx wrangler secret put INSTALL_HMAC_SECRET --env paypal   # a new value, not prod's
+npx wrangler secret put TRIAL_KEY_GROQ --env paypal         # and any other TRIAL_KEY_* / STT_KEY_GROQ, same values as prod
+npx wrangler secret put PAYPAL_CLIENT_ID --env paypal
+npx wrangler secret put PAYPAL_CLIENT_SECRET --env paypal
+npx wrangler secret put PAYPAL_WEBHOOK_ID --env paypal
+npx wrangler deploy --env paypal
+```
+
+Build the matching APK with `flutter build apk --release --dart-define=RELAY_BASE_URL=https://dry-run-tutor-paypal.<subdomain>.workers.dev`. Full sequence and the end-to-end scenarios: `specs/009-paypal-pro-plus/quickstart.md` §3–§4.
 
 ## The daily pointer (`rotation`)
 
@@ -154,5 +207,7 @@ Back on: `json('true')`. Installs pick it up on their next launch.
 npx wrangler deploy --env dev
 npx wrangler deploy --env prod
 ```
+
+(A third, `--env paypal`, exists for the Pro Plus entry; see "PayPal deployment" above.)
 
 Each environment has its own D1 database (`wrangler.jsonc`) and its own secrets (`wrangler secret put INSTALL_HMAC_SECRET --env dev`, one `TRIAL_KEY_*` per enabled pool member, and `STT_KEY_GROQ` for voice — set only via `wrangler secret put STT_KEY_GROQ --env dev`, never in a file).

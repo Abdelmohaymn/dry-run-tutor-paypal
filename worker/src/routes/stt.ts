@@ -11,6 +11,7 @@ import { Hono } from "hono";
 import type { Env, Variables } from "../types";
 import { AppError } from "../lib/errors";
 import { getRuntimeConfig, voiceConfig } from "../lib/runtime-config";
+import { resolveProTier } from "../lib/pro";
 import {
   getVoiceSecondsUsed,
   reserveVoiceSeconds,
@@ -35,7 +36,10 @@ sttRoute.post("/", async (c) => {
   // 2-3. Seconds left today, checked before the body is read.
   const today = utcDate();
   const deviceHash = c.get("installId");
-  const cap = voice.seconds_per_device;
+  // Pro Plus (feature 009): an entitled device, while Pro has capacity, gets
+  // the Pro daily allowance. Voice off still means off for everyone above.
+  const tier = await resolveProTier(cfg, c.env.DB, deviceHash, new Date());
+  const cap = tier && tier.capacityOk ? tier.pro.voice_seconds_per_day : voice.seconds_per_device;
   const used = await getVoiceSecondsUsed(c.env.DB, deviceHash, today);
   if (voiceSecondsLeft(cap, used) <= 0) throw new AppError("VOICE_EXHAUSTED");
 

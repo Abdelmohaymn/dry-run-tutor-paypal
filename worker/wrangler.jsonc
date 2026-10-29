@@ -10,10 +10,12 @@
   // contracts/config.schema.json — TRIAL_KEY_GROQ at minimum. Trial path only,
   // never the learner-keyed path (FR-025). Also TURNSTILE_SECRET
   // (feature 007, web-only routes), and STT_KEY_GROQ (operator Groq key for
-  // server-side speech-to-text, feature 008).
+  // server-side speech-to-text, feature 008). Pro Plus (feature 009) adds
+  // PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_WEBHOOK_ID (sandbox only).
   "ratelimits": [
     { "name": "WEB_EVENT_RL", "namespace_id": "7003", "simple": { "limit": 30, "period": 60 } },
-    { "name": "INSTALL_RL", "namespace_id": "7004", "simple": { "limit": 5, "period": 60 } }
+    { "name": "INSTALL_RL", "namespace_id": "7004", "simple": { "limit": 5, "period": 60 } },
+    { "name": "PRO_RL", "namespace_id": "7005", "simple": { "limit": 5, "period": 60 } }
   ],
   "env": {
     "dev": {
@@ -33,7 +35,8 @@
       ],
       "ratelimits": [
         { "name": "WEB_EVENT_RL", "namespace_id": "7003", "simple": { "limit": 30, "period": 60 } },
-        { "name": "INSTALL_RL", "namespace_id": "7004", "simple": { "limit": 5, "period": 60 } }
+        { "name": "INSTALL_RL", "namespace_id": "7004", "simple": { "limit": 5, "period": 60 } },
+        { "name": "PRO_RL", "namespace_id": "7005", "simple": { "limit": 5, "period": 60 } }
       ]
     },
     "prod": {
@@ -51,7 +54,30 @@
       ],
       "ratelimits": [
         { "name": "WEB_EVENT_RL", "namespace_id": "7003", "simple": { "limit": 30, "period": 60 } },
-        { "name": "INSTALL_RL", "namespace_id": "7004", "simple": { "limit": 5, "period": 60 } }
+        { "name": "INSTALL_RL", "namespace_id": "7004", "simple": { "limit": 5, "period": 60 } },
+        { "name": "PRO_RL", "namespace_id": "7005", "simple": { "limit": 5, "period": 60 } }
+      ]
+    },
+    // Pro Plus (feature 009): a separate deployment for the PayPal entry, with its
+    // own D1 and `config` row (research.md R-16). Never share secrets or a database
+    // with prod.
+    "paypal": {
+      "name": "dry-run-tutor-paypal",
+      "vars": {
+        "ENVIRONMENT": "paypal"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "dry-run-tutor-paypal",
+          "database_id": "71b6a14b-1d7a-4eac-899c-12da0ba29214",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "ratelimits": [
+        { "name": "WEB_EVENT_RL", "namespace_id": "7003", "simple": { "limit": 30, "period": 60 } },
+        { "name": "INSTALL_RL", "namespace_id": "7004", "simple": { "limit": 5, "period": 60 } },
+        { "name": "PRO_RL", "namespace_id": "7005", "simple": { "limit": 5, "period": 60 } }
       ]
     }
   }

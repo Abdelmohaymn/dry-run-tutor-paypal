@@ -11,6 +11,8 @@ import { getRuntimeConfig } from "../lib/runtime-config";
 import { PROVIDER_HEADER, resolveKeyedProvider } from "../lib/keyed-provider";
 import { groqProvider } from "../lib/provider-groq";
 import { runTrialRepair } from "../lib/trial-pool";
+import { resolveProTier } from "../lib/pro";
+import { proLedger } from "../lib/pro-spend";
 import {
   callRepairProvider,
   containsNoGroundTruth,
@@ -59,6 +61,9 @@ repairRoute.post("/", async (c) => {
       timeoutMs: cfg.repair.timeout_ms,
     });
   } else {
+    // Pro Plus (feature 009): an entitled device, while Pro has capacity,
+    // spends the Pro ledger. `undefined` leaves the free ledger, exactly as before.
+    const tier = await resolveProTier(cfg, c.env.DB, c.get("installId"), new Date());
     called = await runTrialRepair(
       cfg,
       c.env.DB,
@@ -73,6 +78,7 @@ repairRoute.post("/", async (c) => {
           timeoutMs: cfg.repair!.timeout_ms,
         }),
       (bindingName) => (c.env as unknown as Record<string, string>)[bindingName],
+      tier && tier.capacityOk ? proLedger : undefined,
     );
   }
 

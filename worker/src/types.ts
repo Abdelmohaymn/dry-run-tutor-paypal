@@ -20,6 +20,12 @@ export interface Env {
   // Feature 007, web-only routes.
   WEB_EVENT_RL: RateLimit;
   TURNSTILE_SECRET: string;
+  // Feature 009 (Pro Plus), PayPal sandbox only.
+  PAYPAL_CLIENT_ID: string; // sandbox REST app; secret only
+  PAYPAL_CLIENT_SECRET: string; // sandbox REST app; secret only
+  PAYPAL_WEBHOOK_ID: string; // sandbox webhook id; secret only
+  // POST /v1/pro/checkout, per device.
+  PRO_RL: RateLimit;
 }
 
 // Set by middleware/install-auth.ts once the X-Install-Id header verifies.

@@ -18,6 +18,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../hints/presentation/hint_action.dart';
 import '../../keys/presentation/key_prompt_dialog.dart';
+import '../../plan/domain/plan_repository.dart';
+import '../../plan/domain/plan_status.dart';
+import '../../plan/domain/replay_gate.dart';
+import '../../plan/presentation/replay_locked_prompt.dart';
 import '../../problem/domain/problem.dart';
 import '../../problem/presentation/examples_action.dart';
 import '../domain/message.dart';
@@ -45,7 +49,21 @@ import 'widgets/wrap_up_banner.dart';
 /// `/session/review` still exist as routes and screens — nothing routes
 /// to them any more (`DailySessionShell._routeFor`).
 class DailyScreen extends StatefulWidget {
-  const DailyScreen({super.key});
+  /// Feature 009 (Pro Plus). All three are optional and default to "no Pro":
+  /// [planRepository] and [proOffered] let a free-limit prompt offer Pro Plus,
+  /// and [replayGate] lets "Practice again" and the problem picker show the
+  /// offer instead of calling the relay when replay is a Pro or own-key
+  /// feature. Nothing is added to this screen's app bar or composer (FR-021).
+  const DailyScreen({
+    this.planRepository,
+    this.proOffered = false,
+    this.replayGate,
+    super.key,
+  });
+
+  final PlanRepository? planRepository;
+  final bool proOffered;
+  final ReplayGate? replayGate;
 
   @override
   State<DailyScreen> createState() => _DailyScreenState();
@@ -106,6 +124,12 @@ class _DailyScreenState extends State<DailyScreen> {
             icon: const Icon(Icons.replay, size: 20),
             tooltip: l10n.verdictPracticeAgainAction,
             onPressed: () async {
+              if (await _replayLocked(context)) {
+                return;
+              }
+              if (!context.mounted) {
+                return;
+              }
               final Result<void> result = await context.read<DailySessionCubit>().practiceAgain();
               if (!context.mounted) {
                 return;
@@ -121,7 +145,14 @@ class _DailyScreenState extends State<DailyScreen> {
           IconButton(
             icon: const Icon(Icons.list_alt_outlined, size: 20),
             tooltip: l10n.problemPickerTitle,
-            onPressed: () => context.push(AppRoute.problemPicker.path),
+            onPressed: () async {
+              if (await _replayLocked(context)) {
+                return;
+              }
+              if (context.mounted) {
+                await context.push(AppRoute.problemPicker.path);
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20),
@@ -261,7 +292,7 @@ class _DailyScreenState extends State<DailyScreen> {
               // dead end on a screen with nothing left to do.
               Verdict(:final session) || Revealed(:final session) => _DailyBody(
                   session: session,
-                  footer: _AssessmentReadyNotice(cubit: cubit),
+                  footer: _AssessmentReadyNotice(cubit: cubit, replayGate: widget.replayGate),
                 ),
               Failure(:final session, :final error) =>
                 _DailyBody(session: session, footer: _FailureNotice(error: error)),
@@ -279,18 +310,67 @@ class _DailyScreenState extends State<DailyScreen> {
   static KeyPromptReason? _promptReasonFor(DailySessionState state) =>
       state is Failure ? keyPromptReasonFor(state.error) : null;
 
+  /// True, after showing the Pro Plus offer, when "Practice again" or the
+  /// problem picker is a Pro or own-key feature on this relay and this learner
+  /// has neither. Asked before the relay is called, so nothing is spent on a
+  /// refusal (FR-027).
+  Future<bool> _replayLocked(BuildContext context) async {
+    final ReplayGate? gate = widget.replayGate;
+    if (gate == null || !await gate.isLocked()) {
+      return false;
+    }
+    if (context.mounted) {
+      await showReplayLockedPrompt(context, gate);
+    }
+    return true;
+  }
+
   /// Explains the situation, and only then opens the form — **pushed**,
   /// so the conversation is still on the stack underneath it and backing
   /// out returns here rather than closing the app.
+  ///
+  /// With Pro Plus on offer (feature 009) a free-limit refusal first asks the
+  /// relay for the plan: a Pro device is told which Pro limit it hit, and a
+  /// free one is offered Pro Plus next to the key.
   Future<void> _promptForKey(BuildContext context, KeyPromptReason? reason) async {
     if (reason == null) {
       return;
     }
-    final bool wantsToAddKey = await showKeyPrompt(context, reason);
-    if (!wantsToAddKey || !context.mounted) {
+    KeyPromptReason shown = reason;
+    bool offerPro = false;
+    final PlanRepository? plans = widget.planRepository;
+    final bool freeLimit = reason == KeyPromptReason.trialConsumed ||
+        reason == KeyPromptReason.trialUnavailable ||
+        reason == KeyPromptReason.trialIpLimited;
+    if (freeLimit && plans != null && widget.proOffered) {
+      final Result<PlanStatus> refreshed = await plans.refresh();
+      if (!context.mounted) {
+        return;
+      }
+      if (refreshed case Ok<PlanStatus>(:final value)) {
+        if (value.plan == PlanKind.pro) {
+          shown = switch (value.proLimit) {
+            ProLimit.sessionsUsed => KeyPromptReason.proSessionsUsed,
+            ProLimit.capacity => KeyPromptReason.proCapacity,
+            ProLimit.ok || null => reason,
+          };
+        } else {
+          offerPro = true;
+        }
+      }
+    }
+    final KeyPromptChoice choice = await showKeyPromptWithPro(context, shown, offerPro: offerPro);
+    if (!context.mounted) {
       return;
     }
-    await context.push(AppRoute.keysEntry.path);
+    switch (choice) {
+      case KeyPromptChoice.addKey:
+        await context.push(AppRoute.keysEntry.path);
+      case KeyPromptChoice.getPro:
+        await context.push(AppRoute.settingsPlan.path);
+      case KeyPromptChoice.dismiss:
+        break;
+    }
   }
 
   /// After this many turns, a learner who has not finished is very likely
@@ -709,9 +789,10 @@ class _JudgingNotice extends StatelessWidget {
 
 /// The verdict exists and the learner walked back to the conversation.
 class _AssessmentReadyNotice extends StatelessWidget {
-  const _AssessmentReadyNotice({required this.cubit});
+  const _AssessmentReadyNotice({required this.cubit, this.replayGate});
 
   final DailySessionCubit cubit;
+  final ReplayGate? replayGate;
 
   @override
   Widget build(BuildContext context) {
@@ -732,6 +813,15 @@ class _AssessmentReadyNotice extends StatelessWidget {
             ),
             OutlinedButton(
               onPressed: () async {
+                if (await replayGate?.isLocked() ?? false) {
+                  if (context.mounted) {
+                    await showReplayLockedPrompt(context, replayGate!);
+                  }
+                  return;
+                }
+                if (!context.mounted) {
+                  return;
+                }
                 final Result<void> result = await cubit.practiceAgain();
                 if (!context.mounted) {
                   return;

@@ -1,5 +1,37 @@
 <!--
 SYNC IMPACT REPORT (latest)
+Version change: 4.0.0 → 4.1.0
+Rationale: MINOR. Principle X is expanded with constraint 9, a bounded
+           exception: a PayPal SANDBOX subscription tier ("Pro Plus", feature
+           009-paypal-pro-plus) that raises a device's limits on the developer's
+           key. The first sentence of Principle X ("The user never pays money.
+           No in-app purchase, no subscription…") is NOT repealed: a sandbox
+           account cannot be charged real money, so constraint 2 holds
+           literally. Real money or a Play Store release of this tier repeals
+           constraint 9 and needs a MAJOR amendment.
+           Occasion (stated plainly): the PayPal AI Hackathon requires a sandbox
+           PayPal integration; its users are the judges. Not justified by D7.
+           Owner chose the narrow exception (option A) in-session 2026-10-20.
+
+Modified principles:
+  - Principle X: constraint 9 added (sandbox-only, off by default, own spend
+    ceiling, nothing in the conversation, no payer data stored).
+  - Principle VI, "Two kinds of key": the developer's key is also used for Pro
+    Plus devices under that tier's ceiling. PayPal pages open in the system
+    browser; the app's own requests still go only to our proxy.
+
+Added sections: none. Removed sections: none.
+
+Source of record: ../docs/constitution.md (outside this repo) MUST receive the
+  same change. The owner copies this amendment there.
+
+Deferred / follow-up TODOs:
+  - Apply this amendment to ../docs/constitution.md (owner).
+  - Privacy page must name PayPal and what the proxy keeps (spec FR-024).
+-->
+
+<!--
+SYNC IMPACT REPORT (4.0.0)
 Version change: 3.0.0 → 4.0.0
 Rationale: MAJOR. Principle VII is redefined in a backward-incompatible way.
            It said "This app MUST NOT record, buffer, store, upload, or receive
@@ -303,6 +335,10 @@ Two kinds of key, two rules:
   their own key. The app is a Nebius hackathon entry used by the judges, and cost
   and abuse are judged at that scale. The speech-to-text use is bounded by a
   per-device daily cap that the server enforces and remote config can change.
+  It is also used for Pro Plus devices (Principle X constraint 9), bounded by that
+  tier's own spend ceiling. PayPal's checkout and management pages open in the
+  system browser, not inside the app's own network layer: the app's requests
+  still go to exactly one host, our proxy.
 - The user's key lives in Android secure storage, travels per-request over TLS,
   is used once, and MUST NEVER be persisted server-side — not in a database, a
   log, an error trace, or a crash report. Key-header redaction is a Phase 1
@@ -428,6 +464,26 @@ may violate any of them:
    for advertising only — there is no product-analytics stream at all. The store
    data-safety declaration MUST state plainly what the ad framework collects, the device
    advertising identifier included.
+9. **One exception: the sandbox demonstration tier (feature 009, Pro Plus).** A learner
+   MAY subscribe to a "Pro Plus" plan through PayPal's **sandbox** environment, which
+   raises their daily session and cloud-voice limits on the developer's key. It is an
+   exception, not a revenue model, and it holds only while all of these are true:
+   - **No real money can move.** No build, config, or secret may contain live PayPal
+     credentials. A sandbox account cannot be charged, so constraint 2 holds literally.
+   - **It is off by default** and the operator can switch it off with no app release.
+     Off means no offer, no new checkout, and free limits for every device.
+   - **Its cost is capped.** Pro spend on the developer's key has its own daily and total
+     ceiling, separate from the trial budget. Reaching it serves Pro devices free limits,
+     never an error and never a bill. Constraint 1 is relaxed for Pro devices only inside
+     that ceiling; a single session stays inside the same turn cap and trimming.
+   - **It never reaches the conversation.** Constraint 5 applies to plans and prices as it
+     does to ads: the chat, recording, and transcript review show nothing about either.
+   - **It stores no payer data.** The proxy keeps the subscription id, its status, the
+     bound device, the period end, and when it was last confirmed. Nothing else.
+   Occasion, stated plainly: the PayPal AI Hackathon (submissions close 2026-11-12,
+   judging ends 2026-12-15) requires a sandbox PayPal integration, and its users are
+   the judges. Taking real money, or shipping this tier on the Play Store, repeals this
+   constraint and needs a MAJOR amendment of the first sentence of this article.
 
 **This trade is measured, not assumed.** Governance still governs: advertising was not
 adopted because it moves Day-7 retention, and it plausibly harms it. D7 is compared
@@ -528,4 +584,4 @@ Complexity MUST be justified against the D7 bar. Runtime development guidance
 lives in `docs/PLAN.md` (phases and DoDs) and `docs/design.md` (architecture);
 neither may contradict this document.
 
-**Version**: 4.0.0 | **Ratified**: 2026-08-13 | **Last Amended**: 2026-10-07
+**Version**: 4.1.0 | **Ratified**: 2026-08-13 | **Last Amended**: 2026-10-20

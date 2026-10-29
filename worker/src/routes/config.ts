@@ -18,9 +18,12 @@ configRoute.get("/", async (c) => {
   // by GET /v1/daily (006). The app has no use for either, so neither leaves
   // the Worker in this payload. `voice.model` (feature 008) is the Worker's
   // own STT model choice, so it is dropped from the `voice` block too; an
-  // absent `voice` stays absent (voice off).
-  const { web: _web, rotation: _rotation, voice, ...rest } = cfg;
-  const appCfg = voice
+  // absent `voice` stays absent (voice off). Likewise `pro.plan_id`,
+  // `pro.daily_token_ceiling`, `pro.total_token_ceiling` and
+  // `pro.recheck_after_seconds` (feature 009) stay on the Worker; an absent
+  // `pro` stays absent.
+  const { web: _web, rotation: _rotation, voice, pro, ...rest } = cfg;
+  const withVoice = voice
     ? {
         ...rest,
         voice: {
@@ -30,6 +33,18 @@ configRoute.get("/", async (c) => {
         },
       }
     : rest;
+  const appCfg = pro
+    ? {
+        ...withVoice,
+        pro: {
+          enabled: pro.enabled,
+          price_label: pro.price_label,
+          sessions_per_day: pro.sessions_per_day,
+          voice_seconds_per_day: pro.voice_seconds_per_day,
+          manage_url: pro.manage_url,
+        },
+      }
+    : withVoice;
   const body = JSON.stringify(appCfg);
   // A stable ETag over the served bytes, not a per-request random value —
   // it changes only when the lever payload itself changes.

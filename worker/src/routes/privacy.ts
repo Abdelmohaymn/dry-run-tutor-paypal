@@ -15,7 +15,7 @@ import type { Env, Variables } from "../types";
 /// on a public page, so it is a deliberate choice rather than a default.
 const CONTACT_EMAIL = "contact@example.com";
 
-const LAST_UPDATED = "7 October 2026";
+const LAST_UPDATED = "22 October 2026";
 
 export const privacyRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -103,12 +103,19 @@ language before the microphone permission is ever requested.</p>
 <h2>Advertising</h2>
 <p>The app shows no advertisements and contains no advertising code.</p>
 
+<h2>Pro Plus (test payments)</h2>
+<p>Pro Plus is billed through PayPal's test environment; no real money moves. Subscribing happens
+on PayPal's own pages, which handle your PayPal login under PayPal's privacy policy. Our server
+keeps only the subscription's id, its status, which device it belongs to, when the current period
+ends, and when we last checked it with PayPal. PayPal also tells us the subscriber's name and
+email; we discard them and never store them.</p>
+
 <h2>What we never collect</h2>
 <ul>
   <li>The app never collects your name, email address, phone number, or any account details — there are no accounts</li>
   <li>Your location</li>
   <li>Your device's advertising identifier</li>
-  <li>Payment information — the app sells nothing</li>
+  <li>Payment information — your card and PayPal details stay with PayPal, on its own pages, and never reach us</li>
   <li>Your API key, which stays in your device's encrypted storage and is sent only to the
       provider you chose</li>
 </ul>

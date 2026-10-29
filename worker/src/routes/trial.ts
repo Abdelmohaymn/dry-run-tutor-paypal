@@ -8,6 +8,7 @@ import type { Env, Variables } from "../types";
 import { AppError } from "../lib/errors";
 import { trialRequestSchema } from "../lib/schemas";
 import { getPrivate, getPublicManifest, isPracticeProblem } from "../lib/content";
+import { pickDaily } from "../lib/daily-pick";
 import { getRuntimeConfig } from "../lib/runtime-config";
 import { runConversationalTurn, runHintTurn } from "../lib/chat-core";
 import { runPracticeTurn } from "../lib/practice-turn";
@@ -26,13 +27,13 @@ import {
   newSessionGateOk,
   hashIp,
   ipSessionGateOk,
-  runLeg,
-  selectMember,
-  settleTrialBudget,
+  freeLedger,
 } from "../lib/trial-pool";
+import { pooledCalls } from "../lib/pooled-calls";
+import { resolveProTier } from "../lib/pro";
+import { proSessionState, servePro } from "../lib/pro-session";
 import { groqProvider } from "../lib/provider-groq";
 import { utcDate, nowIso } from "../lib/time";
-import { FINISH_CHECK_MAX_TOKENS } from "../lib/finish-check";
 import type { Problem } from "../../../tools/problem-types";
 
 export const trialRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -64,6 +65,7 @@ trialRoute.post("/", async (c) => {
   }
 
   const secretFor = (bindingName: string): string => (c.env as unknown as Record<string, string>)[bindingName];
+  const pooled = pooledCalls({ cfg, db, now, secretFor, ledger: freeLedger });
 
   // A hint pull reaches no provider and must neither start nor consume the
   // trial (FR-032a) — this branch returns before any of the gating below.
@@ -137,6 +139,19 @@ trialRoute.post("/", async (c) => {
     });
   }
 
+  // Pro Plus (feature 009). A device with an entitled subscription is served
+  // under Pro rules while it has sessions left today and the operator's Pro
+  // ceilings hold. Otherwise this falls through to the free path, unchanged
+  // (FR-016); if that refuses, the app reads pro_limit from /v1/pro/status to
+  // explain why (research.md R-2).
+  const tier = await resolveProTier(cfg, db, installId, now);
+  if (tier) {
+    const state = await proSessionState(db, installId, body.problem_id, date, tier.pro.sessions_per_day);
+    if (state === "in_flight" || (state === "available" && tier.capacityOk)) {
+      return servePro(c, body, problem, { db, installId, date, now, cfg, pro: tier.pro, secretFor });
+    }
+  }
+
   // T092b: a NEW session is refused only when no eligible member has budget,
   // or the operator's daily session cap is reached. Reinstalls mint fresh
   // install ids, so the per-install rule alone does not bound one network;
@@ -148,6 +163,18 @@ trialRoute.post("/", async (c) => {
     if (!(await ipSessionGateOk(cfg, db, ipHash, date))) {
       throw new AppError("TRIAL_IP_LIMIT");
     }
+  };
+
+  // FR-027: with replay off, a free device gets today's daily problem, once.
+  const gateReplayLever = async (): Promise<void> => {
+    if (cfg.trial.replay_enabled) return;
+    const today = pickDaily(getPublicManifest().problems, cfg, date);
+    if (!today || today.id !== body.problem_id) throw new AppError("TRIAL_CONSUMED");
+    const row = await db
+      .prepare("SELECT replay_reset_date FROM devices WHERE device_hash = ?1")
+      .bind(installId)
+      .first<{ replay_reset_date: string | null }>();
+    if (row?.replay_reset_date === date) throw new AppError("TRIAL_CONSUMED");
   };
 
   if (consumed && !isTasterUnclaimed(consumed)) {
@@ -173,10 +200,12 @@ trialRoute.post("/", async (c) => {
       if (replay || !mayClaimAnotherSession(consumed, cfg)) {
         throw new AppError("TRIAL_CONSUMED");
       }
+      await gateReplayLever();
       await gateNewSession();
     }
     // else in flight — fall through, no budget gate.
   } else {
+    await gateReplayLever();
     await gateNewSession();
   }
 
@@ -205,52 +234,11 @@ trialRoute.post("/", async (c) => {
         turnCap: cfg.trial.turn_cap,
         groundTruthTier: cfg.trial.ground_truth_tier,
         condenseEnabled: cfg.trial.condense,
-        streamChat: async (systemPrompt, messages) => {
-          const { member, result } = await runLeg(
-            "chat",
-            cfg,
-            db,
-            now,
-            (opts) => groqProvider.streamChat({ ...opts, systemPrompt, messages }),
-            secretFor,
-          );
-          const wrappedUsage = async () => {
-            const usage = await result.usage();
-            await settleTrialBudget(db, now, member.id, "chat", usage.inputTokens + usage.outputTokens);
-            return usage;
-          };
-          return { stream: { deltas: result.deltas, usage: wrappedUsage }, providerId: member.id, model: member.model };
-        },
+        streamChat: pooled.streamChat,
         // Condensation is disabled by default for the trial profile
-        // (cfg.trial.condense). If ever enabled, it is resolved against a
-        // single non-retried pool pick rather than full runLeg() — the
-        // low-stakes, secondary call the pool retry logic was not written
-        // for (data-model.md §B8 only names the main leg).
-        condenseCallOptions: async () => {
-          const m = await selectMember("chat", cfg, db, now);
-          if (!m) throw new AppError("TRIAL_UNAVAILABLE");
-          return { baseUrl: m.base_url, apiKey: secretFor(m.secret_binding), model: m.model };
-        },
-        finishCheck: async (systemPrompt, userContent, jsonSchema) => {
-          const { member, result } = await runLeg(
-            "judge",
-            cfg,
-            db,
-            now,
-            (opts) =>
-              groqProvider.structuredCompletion({
-                ...opts,
-                systemPrompt,
-                userContent,
-                maxTokens: FINISH_CHECK_MAX_TOKENS,
-                temperature: 0,
-                jsonSchema,
-              }),
-            secretFor,
-          );
-          await settleTrialBudget(db, now, member.id, "judge", result.usage.inputTokens + result.usage.outputTokens);
-          return { result, providerId: member.id, model: member.model };
-        },
+        // (cfg.trial.condense); see pooledCalls().
+        condenseCallOptions: pooled.condenseCallOptions,
+        finishCheck: pooled.finishCheck,
         onBeforeProviderCall: async () => {
           if (!(await markTrialStarted(db, installId, trialStartedAt, body.problem_id, date, ipHash, cfg.trial.sessions_per_device))) {
             throw new AppError("TRIAL_CONSUMED");
@@ -278,26 +266,7 @@ trialRoute.post("/", async (c) => {
       problemId: body.problem_id,
       date,
       finishCheckTimeoutMs: cfg.finish_offer.timeout_ms,
-      structuredCompletion: async (systemPrompt, userContent, jsonSchema) => {
-        const { member, result } = await runLeg(
-          "judge",
-          cfg,
-          db,
-          now,
-          (opts) =>
-            groqProvider.structuredCompletion({
-              ...opts,
-              systemPrompt,
-              userContent,
-              maxTokens: 2000,
-              temperature: 0,
-              jsonSchema,
-            }),
-          secretFor,
-        );
-        await settleTrialBudget(db, now, member.id, "judge", result.usage.inputTokens + result.usage.outputTokens);
-        return { result, providerId: member.id, model: member.model };
-      },
+      structuredCompletion: pooled.judgeStructuredCompletion,
     },
     body,
     problem,

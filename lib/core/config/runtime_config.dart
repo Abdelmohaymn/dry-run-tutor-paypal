@@ -19,15 +19,18 @@ class ChatConfig extends Equatable {
   List<Object?> get props => <Object?>[turnCap, wrapUpAtTurn, minTurnChars];
 }
 
-/// `trial.turn_cap` — the only field of `trial` the app reads.
-/// `trial.pool` is server business (research.md R-005).
+/// `trial.turn_cap` and `trial.replay_enabled` — the only fields of `trial`
+/// the app reads. `trial.pool` is server business (research.md R-005).
 class TrialConfig extends Equatable {
-  const TrialConfig({required this.turnCap});
+  const TrialConfig({required this.turnCap, this.replayEnabled = true});
 
   final int turnCap;
 
+  /// Feature 009 (FR-027). False: a free device gets today's problem once.
+  final bool replayEnabled;
+
   @override
-  List<Object?> get props => <Object?>[turnCap];
+  List<Object?> get props => <Object?>[turnCap, replayEnabled];
 }
 
 /// `repair.{enabled, min_chars, timeout_ms}` — the three repair levers the
@@ -65,10 +68,34 @@ class VoiceConfig extends Equatable {
   List<Object?> get props => <Object?>[enabled, secondsPerDevice, maxClipSeconds];
 }
 
+/// `pro.{enabled, price_label, sessions_per_day, voice_seconds_per_day,
+/// manage_url}` — what the app may read of the Pro Plus lever. Null means
+/// Pro is off (absent, or `enabled: false`).
+class ProConfig extends Equatable {
+  const ProConfig({
+    required this.enabled,
+    required this.priceLabel,
+    required this.sessionsPerDay,
+    required this.voiceSecondsPerDay,
+    required this.manageUrl,
+  });
+
+  final bool enabled;
+  final String priceLabel;
+  final int sessionsPerDay;
+  final int voiceSecondsPerDay;
+  final String manageUrl;
+
+  @override
+  List<Object?> get props =>
+      <Object?>[enabled, priceLabel, sessionsPerDay, voiceSecondsPerDay, manageUrl];
+}
+
 /// A read-only projection of `config.schema.json`, restricted to exactly
 /// the keys FR-008c permits the app to read: `min_supported_version`, `update_url`,
 /// `killed_problem_ids`, `chat.{turn_cap,wrap_up_at_turn,min_turn_chars}`,
-/// `trial.turn_cap`, `keyed_providers`, `repair.*`, `voice.*`.
+/// `trial.{turn_cap,replay_enabled}`, `keyed_providers`, `repair.*`, `voice.*`,
+/// `pro.*`.
 ///
 /// **Deliberately has no field for `model`, `provider`, `providers`,
 /// `trim`, or `trial.pool`.** Those are server business; FR-008c forbids
@@ -89,6 +116,7 @@ class RuntimeConfig extends Equatable {
     this.updateUrl,
     this.repair,
     this.voice,
+    this.pro,
   });
 
   factory RuntimeConfig.fromDto(ConfigDto dto) {
@@ -101,7 +129,7 @@ class RuntimeConfig extends Equatable {
         wrapUpAtTurn: dto.chat.wrapUpAtTurn,
         minTurnChars: dto.chat.minTurnChars,
       ),
-      trial: TrialConfig(turnCap: dto.trial.turnCap),
+      trial: TrialConfig(turnCap: dto.trial.turnCap, replayEnabled: dto.trial.replayEnabled),
       keyedProviders: List<String>.unmodifiable(dto.keyedProviders ?? const <String>[]),
       repair: dto.repair == null
           ? null
@@ -116,6 +144,15 @@ class RuntimeConfig extends Equatable {
               enabled: dto.voice!.enabled,
               secondsPerDevice: dto.voice!.secondsPerDevice,
               maxClipSeconds: dto.voice!.maxClipSeconds,
+            ),
+      pro: dto.pro == null || !dto.pro!.enabled
+          ? null
+          : ProConfig(
+              enabled: dto.pro!.enabled,
+              priceLabel: dto.pro!.priceLabel,
+              sessionsPerDay: dto.pro!.sessionsPerDay,
+              voiceSecondsPerDay: dto.pro!.voiceSecondsPerDay,
+              manageUrl: dto.pro!.manageUrl,
             ),
     );
   }
@@ -138,6 +175,9 @@ class RuntimeConfig extends Equatable {
   /// Null means server voice is off (on-device speech recognition only).
   final VoiceConfig? voice;
 
+  /// Null means Pro Plus is off: no offer anywhere (Constitution X.9).
+  final ProConfig? pro;
+
   @override
   List<Object?> get props => <Object?>[
         minSupportedVersion,
@@ -148,5 +188,6 @@ class RuntimeConfig extends Equatable {
         keyedProviders,
         repair,
         voice,
+        pro,
       ];
 }

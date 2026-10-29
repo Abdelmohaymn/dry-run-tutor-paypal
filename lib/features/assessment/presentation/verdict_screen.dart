@@ -14,6 +14,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/tokens.dart';
 import '../../chat/presentation/daily_session_cubit.dart';
 import '../../chat/presentation/daily_session_state.dart';
+import '../../plan/domain/replay_gate.dart';
+import '../../plan/presentation/replay_locked_prompt.dart';
 import '../../streak/presentation/share_card.dart';
 import '../domain/assessment.dart';
 import '../domain/complexity.dart';
@@ -25,7 +27,12 @@ import 'dispute_action.dart';
 /// present. **No red anywhere on this screen** (design-tokens.md) — a
 /// verdict is never presented as a failure.
 class VerdictScreen extends StatelessWidget {
-  const VerdictScreen({super.key});
+  /// [replayGate] (feature 009) lets "Practice again" and the problem picker
+  /// show the Pro Plus offer instead of calling the relay when replay is a
+  /// Pro or own-key feature. Without it both behave exactly as before.
+  const VerdictScreen({this.replayGate, super.key});
+
+  final ReplayGate? replayGate;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +62,17 @@ class VerdictScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.list_alt_outlined),
             tooltip: l10n.problemPickerTitle,
-            onPressed: () => context.push(AppRoute.problemPicker.path),
+            onPressed: () async {
+              if (await replayGate?.isLocked() ?? false) {
+                if (context.mounted) {
+                  await showReplayLockedPrompt(context, replayGate!);
+                }
+                return;
+              }
+              if (context.mounted) {
+                await context.push(AppRoute.problemPicker.path);
+              }
+            },
           ),
           BlocBuilder<DailySessionCubit, DailySessionState>(
             buildWhen: (_, state) => state is Verdict || state is Revealed,
@@ -67,6 +84,15 @@ class VerdictScreen extends StatelessWidget {
                 icon: const Icon(Icons.replay),
                 tooltip: l10n.verdictPracticeAgainAction,
                 onPressed: () async {
+                  if (await replayGate?.isLocked() ?? false) {
+                    if (context.mounted) {
+                      await showReplayLockedPrompt(context, replayGate!);
+                    }
+                    return;
+                  }
+                  if (!context.mounted) {
+                    return;
+                  }
                   final Result<void> result = await context.read<DailySessionCubit>().practiceAgain();
                   if (!context.mounted) {
                     return;

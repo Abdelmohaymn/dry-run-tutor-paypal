@@ -12,7 +12,9 @@
     "validate:content": "NODE_PATH=./node_modules tsx ../tools/validate-content.ts",
     "verify:examples": "python3 ../tools/verify-examples.py",
     "check:content": "npm run validate:content && npm run verify:examples && npm run build:content",
-    "replay:tutor": "NODE_PATH=./node_modules tsx tools/replay-tutor.ts"
+    "replay:tutor": "NODE_PATH=./node_modules tsx tools/replay-tutor.ts",
+    "paypal:setup": "NODE_PATH=./node_modules tsx tools/paypal-setup.ts",
+    "paypal:admin": "NODE_PATH=./node_modules tsx tools/paypal-admin.ts"
   },
   "dependencies": {
     "hono": "^4.6.0",

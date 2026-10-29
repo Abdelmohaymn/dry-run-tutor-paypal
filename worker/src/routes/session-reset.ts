@@ -7,6 +7,7 @@ import { sessionResetRequestSchema } from "../lib/schemas";
 import { utcDate } from "../lib/time";
 import { reopenTrialJudge, resetTrialSession } from "../lib/trial-pool";
 import { releaseLostJudgeClaim } from "../lib/turn-cap";
+import { resetProSession } from "../lib/pro-session";
 
 export const sessionResetRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -35,6 +36,14 @@ sessionResetRoute.post("/", async (c) => {
     .bind(deviceHash, date, problemId)
     .run();
   await resetTrialSession(c.env.DB, deviceHash, problemId, date);
+  // Feature 009. A Pro session's slot is freed too (its count is not refunded,
+  // so a replay is a new Pro session), and today's date is recorded so the
+  // replay lever (trial.replay_enabled) can refuse a free device's second go.
+  await resetProSession(c.env.DB, deviceHash, problemId, date);
+  await c.env.DB
+    .prepare("UPDATE devices SET replay_reset_date = ?2 WHERE device_hash = ?1")
+    .bind(deviceHash, date)
+    .run();
 
   return c.json({ ok: true }, 200);
 });
