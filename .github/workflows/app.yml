@@ -36,6 +36,13 @@ jobs:
       # device"). Drop toolchains this job never uses.
       - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk/2[0-7]* /opt/ghc /usr/local/.ghcup /usr/local/share/boost /opt/hostedtoolcache/CodeQL && df -h /
       - uses: actions/checkout@v4
+      # The runner image's default JDK moved to 25, which Gradle 8.14 cannot
+      # run on (the build fails with just "25.0.5"). Pin the JDK local
+      # builds use.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
       - uses: subosito/flutter-action@v2
         with:
           # Pinned to the SDK this project develops against. Floating on
