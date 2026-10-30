@@ -21,7 +21,7 @@ the tutor and the judge.
 | | |
 |---|---|
 | Android APK | [Latest release](https://github.com/Abdelmohaymn/dry-run-tutor-paypal/releases/latest) |
-| Demo video | <YOUTUBE_URL> (under 3 min) |
+| Demo video | [Watch on YouTube](https://youtu.be/0vs7Iigoimc) (2:03) |
 | PayPal sandbox buyer | `easy@p.e.com` / `12345678` |
 
 Android phones only, internet required. **No real money moves**: Pro Plus is billed in PayPal's
